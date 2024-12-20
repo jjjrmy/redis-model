@@ -140,7 +140,7 @@ it('can retrieve all users', function () {
     ],
 ]);
 
-it('can retrieve a single user by ID', function ($expect) {
+it('can retrieve a single user by ID', function (User $model, $expect) {
     $user = User::find(1);
 
     expect($user->name)->toEqual($expect['name']);
@@ -156,7 +156,7 @@ it('can retrieve a single user by ID', function ($expect) {
     ],
 ]);
 
-it('can retrieve users matching a given criteria', function ($expect) {
+it('can retrieve users matching a given criteria', function (User $model, $expect) {
     $users = User::where('name', 'Nuno*')->get();
     expect($users->count())->toBeGreaterThan(0);
 
@@ -301,7 +301,7 @@ it('can retrieve users by email', function () {
     ]
 ]);
 
-it('can create user assigning model property values', function ($userData, $expected) {
+it('can create user assigning model property values', function (User $model, $expected) {
     $user = User::query()->where('email', 'nuno_naduro@example.com')->first();
 
     expect($expected['name'])->toEqual($user->name);
@@ -313,6 +313,8 @@ it('can create user assigning model property values', function ($userData, $expe
             $user->name = 'Nuno Maduro';
             $user->email = 'nuno_naduro@example.com';
             $user->save();
+
+            return $user;
         },
         ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
     ]
