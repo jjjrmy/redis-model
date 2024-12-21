@@ -1,9 +1,11 @@
-# Redis Model
+# Redis Model (Now With Relationships!)
 
 The Redis Model will help create multiple keys with the same prefix in Redis and group those keys together as a table in a SQL database. The Redis Model will create an instance similar to the Eloquent Model in Laravel. It will also provide complete methods for adding, deleting, updating, and retrieving data arrays with methods that are similar to those used in Eloquent.
 
-> No Relationship :
-Redis is not the place to store complex relational data and Redis emphasizes its ability to access data very quickly, so building Relationship methods between models is not necessary and it will take a lot of time to retrieve data.
+> ~~No Relationship :~~
+~~Redis is not the place to store complex relational data and Redis emphasizes its ability to access data very quickly, so building Relationship methods between models is not necessary and it will take a lot of time to retrieve data.~~
+
+While it may not be the most performant to store relationships especially when mixing Redis and Eloquent models, it's still worthwhile to have the ability to use the Redis models in the same way you would a traditional Eloquent model.
 
 ## Supports
 
@@ -23,8 +25,8 @@ Redis is not the place to store complex relational data and Redis emphasizes its
 | Transaction | Yes |
 | Insert a lot of data | Yes |
 | Delete a lot of data | Yes |
-| Update a lot of data | Think.. |
-| Relationship | No |
+| Update a lot of data | Yes |
+| Relationship | Yes |
 
 ### Key structure
 
