@@ -8,6 +8,7 @@ use Alvin0\RedisModel\Exceptions\RedisModelException;
 use Alvin0\RedisModel\Exceptions\MassAssignmentException;
 use Alvin0\RedisModel\Exceptions\ErrorConnectToRedisException;
 use Alvin0\RedisModel\Exceptions\MissingAttributeException;
+use Alvin0\RedisModel\Traits\HasRedisRelationships;
 use ArrayAccess;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\CanBeEscapedWhenCastToString;
@@ -15,6 +16,7 @@ use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Database\Eloquent\Concerns\GuardsAttributes;
 use Illuminate\Database\Eloquent\Concerns\HasAttributes;
 use Illuminate\Database\Eloquent\Concerns\HasTimestamps;
+use Illuminate\Database\Eloquent\Concerns\HasRelationships;
 use Illuminate\Database\Eloquent\Concerns\HidesAttributes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -28,10 +30,18 @@ use ReflectionClass;
 abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializable, CanBeEscapedWhenCastToString
 {
     use HasAttributes,
-    GuardsAttributes,
-    HidesAttributes,
+    HasRelationships,
+    HasRedisRelationships {
+        HasRedisRelationships::getRelationshipFromMethod insteadof HasAttributes;
+        HasRedisRelationships::hasOne insteadof HasRelationships;
+        HasRedisRelationships::newHasOne insteadof HasRelationships;
+        HasRedisRelationships::newBelongsTo insteadof HasRelationships;
+        HasRedisRelationships::newRelatedInstance insteadof HasRelationships;
+    }
+    use GuardsAttributes,
+    HidesAttributes,    
     HasTimestamps,
-        ForwardsCalls;
+    ForwardsCalls;
 
     /**
      * The name of the "created at" column.
@@ -137,6 +147,76 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      * @var bool
      */
     public $exists = false;
+
+    /**
+     * The relations to eager load on every query.
+     *
+     * @var array
+     */
+    protected $with = [];
+
+    /**
+     * The relationship counts that should be eager loaded on every query.
+     *
+     * @var array
+     */
+    protected $withCount = [];
+
+    /**
+     * Indicates whether lazy loading will be prevented on this model.
+     *
+     * @var bool
+     */
+    public $preventsLazyLoading = false;
+
+    /**
+     * Indicates if the model was inserted during the object's lifecycle.
+     *
+     * @var bool
+     */
+    public $wasRecentlyCreated = false;
+
+    /**
+     * Indicates that the object's string representation should be escaped when __toString is invoked.
+     *
+     * @var bool
+     */
+    protected $escapeWhenCastingToString = false;
+
+    /**
+     * The array of booted models.
+     *
+     * @var array
+     */
+    protected static $booted = [];
+
+    /**
+     * The array of trait initializers that will be called on each new instance.
+     *
+     * @var array
+     */
+    protected static $traitInitializers = [];
+
+    /**
+     * The array of global scopes on the model.
+     *
+     * @var array
+     */
+    protected static $globalScopes = [];
+
+    /**
+     * The list of models classes that should not be affected with touch.
+     *
+     * @var array
+     */
+    protected static $ignoreOnTouch = [];
+
+    /**
+     * Indicates if an exception should be thrown when trying to access a missing attribute on a retrieved model.
+     *
+     * @var bool
+     */
+    protected static $modelsShouldPreventAccessingMissingAttributes = false;
 
     /**
      * Get the value indicating whether the IDs are incrementing.
@@ -353,7 +433,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         try {
             $this->connection = RedisFacade::connection($connectionName);
             $this->setPrefixConnector();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             throw new ErrorConnectToRedisException($e->getMessage());
         }
 
@@ -1009,7 +1089,24 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      */
     public function toArray(): array
     {
-        return $this->attributesToArray();
+        $attributes = $this->getAttributes();
+
+        // Get loaded relations
+        foreach ($this->getRelations() as $key => $value) {
+            if ($value instanceof Arrayable) {
+                $relation = $value->toArray();
+            } elseif (is_null($value)) {
+                $relation = $value;
+            }
+
+            if (isset($relation) || is_null($value)) {
+                $attributes[$key] = $relation;
+            }
+
+            unset($relation);
+        }
+
+        return $attributes;
     }
 
     /**
@@ -1030,7 +1127,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      *
      * @return array
      */
-    public function jsonSerialize()
+    public function jsonSerialize(): array
     {
         return $this->toArray();
     }
@@ -1091,28 +1188,6 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     public function offsetUnset($offset): void
     {
         unset($this->attributes[$offset]);
-    }
-
-    /**
-     * Determine if the given key is a relationship method on the model.
-     *
-     * @param  string  $key
-     * @return bool
-     */
-    public function isRelation($key)
-    {
-        return false;
-    }
-
-    /**
-     * Determine if the given relation is loaded.
-     *
-     * @param  string  $key
-     * @return bool
-     */
-    public function relationLoaded($key)
-    {
-        return false;
     }
 
     /**
@@ -1231,5 +1306,48 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         }
 
         return $attributes;
+    }
+
+    /**
+     * Get the default foreign key name for the model.
+     *
+     * @return string
+     */
+    public function getForeignKey()
+    {
+        return Str::snake(class_basename($this)).'_'.$this->getKeyName();
+    }
+
+    /**
+     * Guess the "belongs to" relationship name.
+     *
+     * @return string
+     */
+    protected function guessBelongsToRelation()
+    {
+        [$one, $two, $caller] = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+
+        return $caller['function'];
+    }
+
+    /**
+     * Prevent accessing missing attributes on retrieved models.
+     *
+     * @param  bool  $value
+     * @return void
+     */
+    public static function preventAccessingMissingAttributes($value = true)
+    {
+        static::$modelsShouldPreventAccessingMissingAttributes = $value;
+    }
+
+    /**
+     * Determine if accessing missing attributes is disabled.
+     *
+     * @return bool
+     */
+    public static function preventsAccessingMissingAttributes()
+    {
+        return static::$modelsShouldPreventAccessingMissingAttributes;
     }
 }
