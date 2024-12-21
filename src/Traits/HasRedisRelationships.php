@@ -42,27 +42,6 @@ use LogicException;
 trait HasRedisRelationships
 {
     /**
-     * Define a one-to-one relationship.
-     *
-     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
-     *
-     * @param  class-string<TRelatedModel>  $related
-     * @param  string|null  $foreignKey
-     * @param  string|null  $localKey
-     * @return \Illuminate\Database\Eloquent\Relations\HasOne<TRelatedModel, $this>
-     */
-    public function hasOne($related, $foreignKey = null, $localKey = null)
-    {
-        $instance = $this->newRelatedInstance($related);
-
-        $foreignKey = $foreignKey ?: $this->getForeignKey();
-
-        $localKey = $localKey ?: $this->getKeyName();
-
-        return $this->newHasOne($instance->newQuery(), $this, $instance->getTable().'.'.$foreignKey, $localKey);
-    }
-
-    /**
      * Instantiate a new HasOne relationship.
      *
      * @template TRelatedModel of EloquentModel|RedisModel
@@ -81,6 +60,27 @@ trait HasRedisRelationships
         }
 
         return new EloquentHasOne($query, $parent, $foreignKey, $localKey);
+    }
+
+    /**
+     * Instantiate a new HasMany relationship.
+     *
+     * @template TRelatedModel of EloquentModel|RedisModel
+     * @template TDeclaringModel of EloquentModel|RedisModel
+     *
+     * @param  EloquentBuilder|RedisBuilder<TRelatedModel>  $query
+     * @param  TDeclaringModel  $parent
+     * @param  string  $foreignKey
+     * @param  string  $localKey
+     * @return EloquentHasMany|RedisHasMany<TRelatedModel, TDeclaringModel>
+     */
+    protected function newHasMany(EloquentBuilder | RedisBuilder $query, EloquentModel | RedisModel $parent, $foreignKey, $localKey)
+    {
+        if ($query instanceof RedisBuilder || $parent instanceof RedisModel) {
+            return new RedisHasMany($query, $parent, $foreignKey, $localKey);
+        }
+
+        return new EloquentHasMany($query, $parent, $foreignKey, $localKey);
     }
 
     /**
@@ -103,6 +103,32 @@ trait HasRedisRelationships
         }
 
         return new EloquentBelongsTo($query, $child, $foreignKey, $ownerKey, $relation);
+    }
+
+    /**
+     * Instantiate a new BelongsToMany relationship.
+     *
+     * @template TRelatedModel of EloquentModel|RedisModel
+     * @template TDeclaringModel of EloquentModel|RedisModel
+     *
+     * @param  EloquentBuilder|RedisBuilder<TRelatedModel>  $query
+     * @param  TDeclaringModel  $parent
+     * @param  string|class-string<\Illuminate\Database\Eloquent\Model>  $table
+     * @param  string  $foreignPivotKey
+     * @param  string  $relatedPivotKey
+     * @param  string  $parentKey
+     * @param  string  $relatedKey
+     * @param  string|null  $relationName
+     * @return EloquentBelongsToMany|RedisBelongsToMany<TRelatedModel, TDeclaringModel>
+     */
+    protected function newBelongsToMany(EloquentBuilder | RedisBuilder $query, EloquentModel | RedisModel $parent, $table, $foreignPivotKey, $relatedPivotKey,
+                                        $parentKey, $relatedKey, $relationName = null)
+    {
+        if ($query instanceof RedisBuilder || $parent instanceof RedisModel) {
+            return new RedisBelongsToMany($query, $parent, $table, $foreignPivotKey, $relatedPivotKey, $parentKey, $relatedKey, $relationName);
+        }
+
+        return new EloquentBelongsToMany($query, $parent, $table, $foreignPivotKey, $relatedPivotKey, $parentKey, $relatedKey, $relationName);
     }
 
     /**
@@ -136,6 +162,11 @@ trait HasRedisRelationships
 
     protected function newRelatedInstance($class)
     {
-        return new $class;
+        return tap(new $class, function ($instance) {
+            if ($this instanceof RedisModel || $instance instanceof RedisModel) return;
+            if (! $instance->getConnectionName()) {
+                $instance->setConnection($this->connection);
+            }
+        });
     }
 }

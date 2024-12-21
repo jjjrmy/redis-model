@@ -33,9 +33,10 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     HasRelationships,
     HasRedisRelationships {
         HasRedisRelationships::getRelationshipFromMethod insteadof HasAttributes;
-        HasRedisRelationships::hasOne insteadof HasRelationships;
         HasRedisRelationships::newHasOne insteadof HasRelationships;
+        HasRedisRelationships::newHasMany insteadof HasRelationships;
         HasRedisRelationships::newBelongsTo insteadof HasRelationships;
+        HasRedisRelationships::newBelongsToMany insteadof HasRelationships;
         HasRedisRelationships::newRelatedInstance insteadof HasRelationships;
     }
     use GuardsAttributes,
