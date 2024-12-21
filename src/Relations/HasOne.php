@@ -6,53 +6,36 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Alvin0\RedisModel\Model as RedisModel;
 use Alvin0\RedisModel\Collection as RedisCollection;
-use Illuminate\Support\Collection as BaseCollection;
+use Illuminate\Database\Eloquent\Builder;
+use Alvin0\RedisModel\Builder as RedisBuilder;
 
-class HasOne extends Relation
+/**
+ * @template TRelatedModel of EloquentModel|RedisModel
+ * @template TDeclaringModel of EloquentModel|RedisModel
+ * @extends \Illuminate\Database\Eloquent\Relations\HasOne<TRelatedModel, TDeclaringModel>
+ */
+class HasOne extends \Illuminate\Database\Eloquent\Relations\HasOne
 {
-    /**
-     * The foreign key of the relationship.
-     *
-     * @var string
-     */
-    protected $foreignKey;
-
-    /**
-     * The local key of the parent model.
-     *
-     * @var string
-     */
-    protected $localKey;
-
-    /**
-     * The related model instance.
-     *
-     * @var \Illuminate\Database\Eloquent\Model|\Alvin0\RedisModel\Model
-     */
-    protected $related;
-
-    /**
-     * The keys for eager loading.
-     *
-     * @var array
-     */
-    protected $eagerKeys = [];
-
     /**
      * Create a new has one relationship instance.
      *
-     * @param  mixed  $query
-     * @param  \Illuminate\Database\Eloquent\Model|\Alvin0\RedisModel\Model  $parent
+     * @param  Builder|RedisBuilder  $query
+     * @param  TDeclaringModel  $parent
      * @param  string  $foreignKey
      * @param  string  $localKey
      * @return void
      */
-    public function __construct($query, $parent, $foreignKey, $localKey)
+    public function __construct(Builder|RedisBuilder $query, EloquentModel|RedisModel $parent, string $foreignKey, string $localKey)
     {
         $this->localKey = $localKey;
         $this->foreignKey = $foreignKey;
 
-        parent::__construct($query, $parent);
+        // Initialize the relation without calling parent constructor
+        $this->query = $query;
+        $this->parent = $parent;
+        $this->related = $query->getModel();
+
+        $this->addConstraints();
     }
 
     /**
@@ -72,17 +55,17 @@ class HasOne extends Relation
     /**
      * Set the constraints for an eager load of the relation.
      *
-     * @param  array  $models
+     * @param  array<int, TDeclaringModel>  $models
      * @return void
      */
     public function addEagerConstraints(array $models)
     {
-        $this->eagerKeys = collect($models)->map(function ($model) {
+        $keys = collect($models)->map(function ($model) {
             return $model->{$this->localKey};
         })->all();
 
         if (!($this->related instanceof RedisModel)) {
-            $this->query->whereIn($this->foreignKey, $this->eagerKeys);
+            $this->query->whereIn($this->foreignKey, $keys);
         }
     }
 
@@ -103,90 +86,14 @@ class HasOne extends Relation
             return $this->related::firstWhere($this->getForeignKeyName(), $parentKey);
         }
 
-        return $this->query->first();
-    }
-
-    /**
-     * Initialize the relation on a set of models.
-     *
-     * @param  array  $models
-     * @param  string  $relation
-     * @return array
-     */
-    public function initRelation(array $models, $relation)
-    {
-        foreach ($models as $model) {
-            $model->setRelation($relation, null);
-        }
-
-        return $models;
-    }
-
-    /**
-     * Match the eagerly loaded results to their parents.
-     *
-     * @param  array  $models
-     * @param  \Illuminate\Database\Eloquent\Collection|\Alvin0\RedisModel\Collection  $results
-     * @param  string  $relation
-     * @return array
-     */
-    public function match(array $models, $results, $relation)
-    {
-        $dictionary = $this->buildDictionary($results);
-
-        foreach ($models as $model) {
-            $key = $model->{$this->localKey};
-
-            if (isset($dictionary[$key])) {
-                $model->setRelation($relation, $dictionary[$key]);
-            }
-        }
-
-        return $models;
-    }
-
-    /**
-     * Build model dictionary keyed by the relation's foreign key.
-     *
-     * @param  \Illuminate\Database\Eloquent\Collection|\Alvin0\RedisModel\Collection  $results
-     * @return array
-     */
-    protected function buildDictionary($results)
-    {
-        $dictionary = [];
-
-        foreach ($results as $result) {
-            $dictionary[$result->{$this->foreignKey}] = $result;
-        }
-
-        return $dictionary;
-    }
-
-    /**
-     * Get the plain foreign key name without table prefix.
-     *
-     * @return string
-     */
-    public function getForeignKeyName()
-    {
-        $segments = explode('.', $this->foreignKey);
-        return end($segments);
-    }
-
-    /**
-     * Get the parent key value.
-     *
-     * @return mixed
-     */
-    protected function getParentKey()
-    {
-        return $this->parent->getAttribute($this->localKey);
+        return parent::getResults();
     }
 
     /**
      * Get the results of the relationship as a collection.
      *
-     * @return \Illuminate\Support\Collection
+     * @param  array  $columns
+     * @return Collection|RedisCollection
      */
     public function get($columns = ['*'])
     {
@@ -202,7 +109,7 @@ class HasOne extends Relation
     /**
      * Get the relationship for eager loading.
      *
-     * @return \Illuminate\Database\Eloquent\Collection|\Alvin0\RedisModel\Collection
+     * @return Collection|RedisCollection
      */
     public function getEager()
     {
@@ -211,7 +118,7 @@ class HasOne extends Relation
             $records = $this->related::all();
             
             foreach ($records as $record) {
-                if (in_array($record->{$this->getForeignKeyName()}, $this->eagerKeys)) {
+                if (in_array($record->{$this->getForeignKeyName()}, $this->getEagerModelKeys($this->parent))) {
                     $results->push($record);
                 }
             }
@@ -219,14 +126,14 @@ class HasOne extends Relation
             return $results;
         }
 
-        return $this->get();
+        return parent::getEager();
     }
 
     /**
      * Create a new instance of the related model.
      *
      * @param  array  $attributes
-     * @return \Illuminate\Database\Eloquent\Model|\Alvin0\RedisModel\Model
+     * @return EloquentModel|RedisModel
      */
     public function create(array $attributes = [])
     {
