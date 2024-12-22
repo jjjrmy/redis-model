@@ -1,5 +1,8 @@
 <?php
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -10,6 +13,9 @@
 | need to change it using the "uses()" function to bind a different classes or traits.
 |
 */
+
+uses(Alvin0\RedisModel\Tests\TestCase::class)->in('Feature');
+uses(Alvin0\RedisModel\Tests\TestCase::class)->in('Unit');
 
 /*
 |--------------------------------------------------------------------------
@@ -37,7 +43,23 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
-{
-    // ..
-}
+uses()->beforeEach(function () {
+    // Make sure we're using SQLite
+    config(['database.default' => 'sqlite']);
+    
+    // Drop all tables first
+    $this->artisan('db:wipe', [
+        '--force' => true,
+    ]);
+    
+    // Run migrations
+    $this->artisan('migrate:fresh', [
+        '--path' => 'workbench/database/migrations',
+        '--force' => true,
+    ]);
+})->in('Feature', 'Unit');
+
+// Add a basic test to ensure our test environment is working
+test('basic test', function () {
+    expect(true)->toBeTrue();
+});

@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Alvin0\RedisModel\Model;
 
-class User extends Model
+class Location extends Model
 {
     /**
      * The attributes that are mass assignable.
@@ -12,8 +12,7 @@ class User extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'id',
-        'name',
-        'email',
+        'id', // State (like "CA")
+        'name', // Full name (like "California")
     ];
-}
+} 

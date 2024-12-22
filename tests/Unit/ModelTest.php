@@ -1,18 +1,16 @@
 <?php
 
-use App\Models\User;
+use App\Models\Customer;
 use Illuminate\Support\Facades\Redis;
-
-uses(Alvin0\RedisModel\Tests\TestCase::class);
 
 beforeEach(function () {
     Redis::flushall();
 });
 
-it('a user can be created without id', function ($userInput, $expect) {
-    $user = User::create($userInput);
-    expect($user->name)->toEqual($expect['name']);
-    expect($user->email)->toEqual($expect['email']);
+it('a customer can be created without id', function ($customerInput, $expect) {
+    $customer = Customer::create($customerInput);
+    expect($customer->name)->toEqual($expect['name']);
+    expect($customer->email)->toEqual($expect['email']);
 })->with([
     [
         ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
@@ -28,20 +26,19 @@ it('a user can be created without id', function ($userInput, $expect) {
     ],
 ]);
 
-it('can insert multiple users without id', function ($data) {
+it('can insert multiple customers without id', function ($data) {
+    Customer::insert($data);
 
-    User::insert($data);
-
-    $users = User::get();
-    expect($users->count())->toBe(10);
+    $customers = Customer::get();
+    expect($customers->count())->toBe(10);
 })->with([
     function () {
         $data = [];
 
         for ($i = 1; $i <= 10; $i++) {
             $data[] = [
-                'name' => 'User ' . $i,
-                'email' => 'user' . $i . '@example.com',
+                'name' => 'Customer ' . $i,
+                'email' => 'customer' . $i . '@example.com',
             ];
         }
 
@@ -49,25 +46,25 @@ it('can insert multiple users without id', function ($data) {
     }
 ]);
 
-it('a user can be force created', function ($userInput, $expect) {
-    $user = User::create($userInput);
+it('a customer can be force created', function ($customerInput, $expect) {
+    $customer = Customer::create($customerInput);
 
-    expect($user->name)->toEqual($expect['name']);
-    expect($user->email)->toEqual($expect['email']);
+    expect($customer->name)->toEqual($expect['name']);
+    expect($customer->email)->toEqual($expect['email']);
 
-    expect(User::count())->toBe(1);
+    expect(Customer::count())->toBe(1);
 
-    $userForceCreate = User::forceCreate([
-        'id' => $user->id,
-        'name' => $user->name,
-        'email' => $user->email,
+    $customerForceCreate = Customer::forceCreate([
+        'id' => $customer->id,
+        'name' => $customer->name,
+        'email' => $customer->email,
     ]);
 
-    expect($userForceCreate->id)->toEqual($user['id']);
-    expect($userForceCreate->name)->toEqual($user['name']);
-    expect($userForceCreate->email)->toEqual($user['email']);
+    expect($customerForceCreate->id)->toEqual($customer['id']);
+    expect($customerForceCreate->name)->toEqual($customer['name']);
+    expect($customerForceCreate->email)->toEqual($customer['email']);
 
-    expect(User::count())->toBe(1);
+    expect(Customer::count())->toBe(1);
 })->with([
     [
         ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
@@ -83,28 +80,28 @@ it('a user can be force created', function ($userInput, $expect) {
     ],
 ]);
 
-it('a user can be created, updated, and deleted', function ($userInput, $expect) {
-    $user = User::create($userInput);
+it('a customer can be created, updated, and deleted', function ($customerInput, $expect) {
+    $customer = Customer::create($customerInput);
 
-    expect($user->name)->toEqual($expect['name']);
-    expect($user->email)->toEqual($expect['email']);
+    expect($customer->name)->toEqual($expect['name']);
+    expect($customer->email)->toEqual($expect['email']);
 
-    // Update the user's name and email
-    $user->name = 'New Name';
-    $user->email = 'new_email@example.com';
-    $user->save();
+    // Update the customer's name and email
+    $customer->name = 'New Name';
+    $customer->email = 'new_email@example.com';
+    $customer->save();
 
-    // Reload the user from the database and assert that the name and email were updated
-    $updatedUser = User::find($user->id);
-    expect($updatedUser->name)->toEqual('New Name');
-    expect($updatedUser->email)->toEqual('new_email@example.com');
+    // Reload the customer from the database and assert that the name and email were updated
+    $updatedCustomer = Customer::find($customer->id);
+    expect($updatedCustomer->name)->toEqual('New Name');
+    expect($updatedCustomer->email)->toEqual('new_email@example.com');
 
-    // Delete the user from the database
-    $updatedUser->delete();
+    // Delete the customer from the database
+    $updatedCustomer->delete();
 
-    // Assert that the user was deleted by checking that it can no longer be found in the database
-    $deletedUser = User::find($user->id);
-    expect($deletedUser)->toBeNull();
+    // Assert that the customer was deleted by checking that it can no longer be found in the database
+    $deletedCustomer = Customer::find($customer->id);
+    expect($deletedCustomer)->toBeNull();
 })->with([
     [
         ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
@@ -120,8 +117,8 @@ it('a user can be created, updated, and deleted', function ($userInput, $expect)
     ],
 ]);
 
-it('can retrieve all users', function () {
-    expect(User::all()->count())->toBeGreaterThan(0);
+it('can retrieve all customers', function () {
+    expect(Customer::all()->count())->toBeGreaterThan(0);
 })->with([
     [
         function () {
@@ -129,65 +126,65 @@ it('can retrieve all users', function () {
 
             for ($i = 1; $i <= 10; $i++) {
                 $data[] = [
-                    'name' => 'User ' . $i,
-                    'email' => 'user' . $i . '@example.com',
+                    'name' => 'Customer ' . $i,
+                    'email' => 'customer' . $i . '@example.com',
                 ];
             }
 
-            return User::insert($data);
+            return Customer::insert($data);
         }
     ],
     [
-        fn() => User::create(['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com']),
+        fn() => Customer::create(['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com']),
     ],
 ]);
 
-it('can retrieve a single user by ID', function (User $model, $expect) {
-    $user = User::find(1);
+it('can retrieve a single customer by ID', function (Customer $model, $expect) {
+    $customer = Customer::find(1);
 
-    expect($user->name)->toEqual($expect['name']);
-    expect($user->email)->toEqual($expect['email']);
+    expect($customer->name)->toEqual($expect['name']);
+    expect($customer->email)->toEqual($expect['email']);
 })->with([
     [
-        fn() => User::create(['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com']),
+        fn() => Customer::create(['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com']),
         ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
     ],
     [
-        fn() => User::create(['id' => 1, 'name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com']),
+        fn() => Customer::create(['id' => 1, 'name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com']),
         ['name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com'],
     ],
 ]);
 
-it('can retrieve users matching a given criteria', function (User $model, $expect) {
-    $users = User::where('name', 'Nuno*')->get();
-    expect($users->count())->toBeGreaterThan(0);
+it('can retrieve customers matching a given criteria', function (Customer $model, $expect) {
+    $customers = Customer::where('name', 'Nuno*')->get();
+    expect($customers->count())->toBeGreaterThan(0);
 
-    foreach ($users as $user) {
-        expect($user->name)->toContain($expect['name']);
-        expect($user->email)->toContain($expect['email']);
+    foreach ($customers as $customer) {
+        expect($customer->name)->toContain($expect['name']);
+        expect($customer->email)->toContain($expect['email']);
     }
 })->with([
     [
-        fn() => User::create(['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com']),
+        fn() => Customer::create(['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com']),
         ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
     ],
     [
-        fn() => User::create(['id' => 1, 'name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com']),
+        fn() => Customer::create(['id' => 1, 'name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com']),
         ['name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com'],
     ],
 ]);
 
-it('can insert multiple users', function ($data) {
-    User::insert($data);
+it('can insert multiple customers', function ($data) {
+    Customer::insert($data);
 
-    $users = User::get();
-    expect($users->count())->toBe(10);
+    $customers = Customer::get();
+    expect($customers->count())->toBe(10);
 
-    foreach ($data as $userInput) {
-        $user = User::where('email', $userInput['email'])->first();
-        expect($user->id)->toBeString();
-        expect($user->name)->toEqual($userInput['name']);
-        expect($user->email)->toEqual($userInput['email']);
+    foreach ($data as $customerInput) {
+        $customer = Customer::where('email', $customerInput['email'])->first();
+        expect($customer->id)->toBeString();
+        expect($customer->name)->toEqual($customerInput['name']);
+        expect($customer->email)->toEqual($customerInput['email']);
     }
 })->with([
     function () {
@@ -195,8 +192,8 @@ it('can insert multiple users', function ($data) {
 
         for ($i = 1; $i <= 10; $i++) {
             $data[] = [
-                'name' => 'User ' . $i,
-                'email' => 'user' . $i . '@example.com',
+                'name' => 'Customer ' . $i,
+                'email' => 'customer' . $i . '@example.com',
                 'id' => $i,
             ];
         }
@@ -205,29 +202,29 @@ it('can insert multiple users', function ($data) {
     }
 ]);
 
-it('can remove multiple users', function ($data) {
-    User::insert($data);
+it('can remove multiple customers', function ($data) {
+    Customer::insert($data);
 
-    $users = User::get();
-    expect($users->count())->toBe(10);
+    $customers = Customer::get();
+    expect($customers->count())->toBe(10);
 
-    User::where('email', 'user' . rand(1, 3) . '@example.com')->destroy();
-    User::where('email', 'user' . rand(4, 6) . '@example.com')->destroy();
-    User::where('email', 'user' . rand(7, 10) . '@example.com')->destroy();
+    Customer::where('email', 'customer' . rand(1, 3) . '@example.com')->destroy();
+    Customer::where('email', 'customer' . rand(4, 6) . '@example.com')->destroy();
+    Customer::where('email', 'customer' . rand(7, 10) . '@example.com')->destroy();
 
-    expect(User::count())->toBe(7);
+    expect(Customer::count())->toBe(7);
 
-    User::destroy();
+    Customer::destroy();
 
-    expect(User::get()->count())->toBe(0);
+    expect(Customer::get()->count())->toBe(0);
 })->with([
     function () {
         $data = [];
 
         for ($i = 1; $i <= 10; $i++) {
             $data[] = [
-                'name' => 'User ' . $i,
-                'email' => 'user' . $i . '@example.com',
+                'name' => 'Customer ' . $i,
+                'email' => 'customer' . $i . '@example.com',
                 'id' => $i,
             ];
         }
@@ -236,20 +233,20 @@ it('can remove multiple users', function ($data) {
     }
 ]);
 
-it('it can insert multiple users with transaction', function ($data) {
-    User::transaction(function ($conTransaction) use ($data) {
-        User::insert($data, $conTransaction);
+it('it can insert multiple customers with transaction', function ($data) {
+    Customer::transaction(function ($conTransaction) use ($data) {
+        Customer::insert($data, $conTransaction);
     });
 
-    expect(User::get()->count())->toBe(10);
+    expect(Customer::get()->count())->toBe(10);
 })->with([
     function () {
         $data = [];
 
         for ($i = 1; $i <= 10; $i++) {
             $data[] = [
-                'name' => 'User ' . $i,
-                'email' => 'user' . $i . '@example.com',
+                'name' => 'Customer ' . $i,
+                'email' => 'customer' . $i . '@example.com',
                 'id' => $i,
             ];
         }
@@ -258,22 +255,22 @@ it('it can insert multiple users with transaction', function ($data) {
     }
 ]);
 
-it('it cant insert multiple users with transaction', function ($data) {
-    User::transaction(function ($conTransaction) use ($data) {
-        User::insert($data, $conTransaction);
+it('it cant insert multiple customers with transaction', function ($data) {
+    Customer::transaction(function ($conTransaction) use ($data) {
+        Customer::insert($data, $conTransaction);
 
         throw new \Exception('Something went wrong');
     });
 
-    expect(User::get()->count())->toBe(0);
+    expect(Customer::get()->count())->toBe(0);
 })->with([
     function () {
         $data = [];
 
         for ($i = 1; $i <= 10; $i++) {
             $data[] = [
-                'name' => 'User ' . $i,
-                'email' => 'user' . $i . '@example.com',
+                'name' => 'Customer ' . $i,
+                'email' => 'customer' . $i . '@example.com',
                 'id' => $i,
             ];
         }
@@ -282,20 +279,20 @@ it('it cant insert multiple users with transaction', function ($data) {
     }
 ]);
 
-it('can retrieve users by email', function () {
-    $users = User::query()->where('email', 'nuno_naduro@example.com')->get();
+it('can retrieve customers by email', function () {
+    $customers = Customer::query()->where('email', 'nuno_naduro@example.com')->get();
 
-    expect(2)->toEqual($users->count());
+    expect(2)->toEqual($customers->count());
 })->with([
     [
-        fn() => User::insert([
+        fn() => Customer::insert([
             ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
             ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
             ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.net'],
         ]),
     ],
     [
-        fn() => User::insert([
+        fn() => Customer::insert([
             ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.net'],
             ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
             ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
@@ -303,74 +300,74 @@ it('can retrieve users by email', function () {
     ]
 ]);
 
-it('can create user assigning model property values', function (User $model, $expected) {
-    $user = User::query()->where('email', 'nuno_naduro@example.com')->first();
+it('can create customer assigning model property values', function (Customer $model, $expected) {
+    $customer = Customer::query()->where('email', 'nuno_naduro@example.com')->first();
 
-    expect($expected['name'])->toEqual($user->name);
-    expect($expected['email'])->toEqual($user->email);
+    expect($expected['name'])->toEqual($customer->name);
+    expect($expected['email'])->toEqual($customer->email);
 })->with([
     [
         function () {
-            $user = new User;
-            $user->name = 'Nuno Maduro';
-            $user->email = 'nuno_naduro@example.com';
-            $user->save();
+            $customer = new Customer;
+            $customer->name = 'Nuno Maduro';
+            $customer->email = 'nuno_naduro@example.com';
+            $customer->save();
 
-            return $user;
+            return $customer;
         },
         ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
     ]
 ]);
 
-it('can update user subKey without duplication', function () {
-    expect(1)->toEqual(User::query()->count());
+it('can update customer subKey without duplication', function () {
+    expect(1)->toEqual(Customer::query()->count());
 })->with([
     [
         function () {
-            $user = new User;
-            $user->name = 'Nuno Maduro';
-            $user->email = 'nuno_naduro@example.com';
-            $user->save();
-            $user->email = 'nuno_naduro@example.net';
-            $user->save();
+            $customer = new Customer;
+            $customer->name = 'Nuno Maduro';
+            $customer->email = 'nuno_naduro@example.com';
+            $customer->save();
+            $customer->email = 'nuno_naduro@example.net';
+            $customer->save();
         },
     ],
     [
         function () {
-            $user = new User;
-            $user->name = 'Nuno Maduro';
-            $user->email = 'nuno_naduro@example.com';
-            $user->save();
-            $user->name = 'Nuno';
-            $user->email = 'nuno_naduro@example.net';
-            $user->save();
+            $customer = new Customer;
+            $customer->name = 'Nuno Maduro';
+            $customer->email = 'nuno_naduro@example.com';
+            $customer->save();
+            $customer->name = 'Nuno';
+            $customer->email = 'nuno_naduro@example.net';
+            $customer->save();
         },
     ]
 ]);
 
-it('can update user primaryKey without duplication', function () {
-    expect(1)->toEqual(User::query()->count());
+it('can update customer primaryKey without duplication', function () {
+    expect(1)->toEqual(Customer::query()->count());
 })->with([
     [
         function () {
-            $user = new User;
-            $user->id = '1';
-            $user->name = 'Nuno Maduro';
-            $user->email = 'nuno_naduro@example.com';
-            $user->save();
-            $user->id = 2;
-            $user->save();
+            $customer = new Customer;
+            $customer->id = '1';
+            $customer->name = 'Nuno Maduro';
+            $customer->email = 'nuno_naduro@example.com';
+            $customer->save();
+            $customer->id = 2;
+            $customer->save();
         },
     ],
     [
         function () {
-            $user = new User;
-            $user->id = 1;
-            $user->name = 'Nuno Maduro';
-            $user->email = 'nuno_naduro@example.com';
-            $user->save();
-            $user->id = 2;
-            $user->save();
+            $customer = new Customer;
+            $customer->id = 1;
+            $customer->name = 'Nuno Maduro';
+            $customer->email = 'nuno_naduro@example.com';
+            $customer->save();
+            $customer->id = 2;
+            $customer->save();
         },
     ]
 ]);
