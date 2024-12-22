@@ -4,6 +4,8 @@ namespace Alvin0\RedisModel\Tests;
 
 use Orchestra\Testbench\TestCase as BaseTestCase;
 use Alvin0\RedisModel\RedisModelServiceProvider;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -20,6 +22,9 @@ abstract class TestCase extends BaseTestCase
                 'prefix' => '',
             ],
         ]);
+        
+        // Run migrations
+        $this->loadMigrationsFrom(__DIR__ . '/../workbench/database/migrations');
     }
 
     protected function getPackageProviders($app)
@@ -38,5 +43,8 @@ abstract class TestCase extends BaseTestCase
             'database' => ':memory:',
             'prefix' => '',
         ]);
+
+        // Set base path to workbench
+        $app->setBasePath(__DIR__ . '/../workbench');
     }
 }

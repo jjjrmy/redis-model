@@ -3,10 +3,6 @@
 use App\Models\Customer;
 use Illuminate\Support\Facades\Redis;
 
-beforeEach(function () {
-    Redis::flushall();
-});
-
 it('a customer can be created without id', function ($customerInput, $expect) {
     $customer = Customer::create($customerInput);
     expect($customer->name)->toEqual($expect['name']);

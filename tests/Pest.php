@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Redis;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,6 +17,20 @@ use Illuminate\Support\Facades\Schema;
 
 uses(Alvin0\RedisModel\Tests\TestCase::class)->in('Feature');
 uses(Alvin0\RedisModel\Tests\TestCase::class)->in('Unit');
+
+uses()->beforeEach(function () {
+    // Make sure we're using SQLite
+    config(['database.default' => 'sqlite']);
+    
+    // Drop all tables
+    Schema::dropAllTables();
+
+    // Flush Redis
+    Redis::flushall();
+
+    // Run migrations using the same method as TestCase
+    $this->loadMigrationsFrom(__DIR__ . '/../workbench/database/migrations');
+})->in('Feature', 'Unit');
 
 /*
 |--------------------------------------------------------------------------
@@ -42,22 +57,6 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
-
-uses()->beforeEach(function () {
-    // Make sure we're using SQLite
-    config(['database.default' => 'sqlite']);
-    
-    // Drop all tables first
-    $this->artisan('db:wipe', [
-        '--force' => true,
-    ]);
-    
-    // Run migrations
-    $this->artisan('migrate:fresh', [
-        '--path' => 'workbench/database/migrations',
-        '--force' => true,
-    ]);
-})->in('Feature', 'Unit');
 
 // Add a basic test to ensure our test environment is working
 test('basic test', function () {
