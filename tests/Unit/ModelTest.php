@@ -1,7 +1,9 @@
 <?php
 
-use Alvin0\RedisModel\Tests\Models\User;
+use App\Models\User;
 use Illuminate\Support\Facades\Redis;
+
+uses(Alvin0\RedisModel\Tests\TestCase::class);
 
 beforeEach(function () {
     Redis::flushall();

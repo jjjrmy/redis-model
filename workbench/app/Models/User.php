@@ -1,5 +1,6 @@
 <?php
-namespace Alvin0\RedisModel\Tests\Models;
+
+namespace App\Models;
 
 use Alvin0\RedisModel\Model;
 
