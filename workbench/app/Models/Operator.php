@@ -9,15 +9,10 @@ class Operator extends Model
 {
     use HasRedisRelationships;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'name',
-        'role',
-        'certification',
-        'status',
-    ];
+    protected $guarded = [];
+
+    public function lift()
+    {
+        return $this->belongsTo(SkiLift::class);
+    }
 } 

@@ -2,19 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Alvin0\RedisModel\Model;
 
 class Trail extends Model
 {
     /**
-     * The attributes that should be cast.
+     * The model's sub keys for the model.
      *
-     * @var array<string, string>
+     * @var array
      */
-    protected $casts = [
-        'is_open' => 'boolean',
-        'conditions' => 'array',
-        'last_groomed' => 'datetime',
+    protected $subKeys = [
+        'mountain_id',
     ];
 
     /**
@@ -24,10 +23,16 @@ class Trail extends Model
      */
     protected $fillable = [
         'name',
-        'difficulty',
-        'length',
-        'is_open',
-        'conditions',
-        'last_groomed',
+        'mountain_id',
     ];
+
+    public function mountain()
+    {
+        return $this->belongsTo(Mountain::class);
+    }
+
+    public function skiLift()
+    {
+        return $this->hasOne(SkiLift::class, 'starting_trail_id');
+    }
 } 

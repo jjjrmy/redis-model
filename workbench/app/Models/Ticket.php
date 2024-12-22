@@ -3,19 +3,18 @@
 namespace App\Models;
 
 use Alvin0\RedisModel\Model;
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasManyThrough, HasOneThrough};
 
 class Ticket extends Model
 {
     /**
-     * The attributes that should be cast.
+     * The model's sub keys for the model.
      *
-     * @var array<string, string>
+     * @var array
      */
-    protected $casts = [
-        'valid_from' => 'datetime',
-        'valid_until' => 'datetime',
-        'is_active' => 'boolean',
-        'price' => 'float',
+    protected $subKeys = [
+        'customer_id',
+        'mountain_id',
     ];
 
     /**
@@ -24,10 +23,29 @@ class Ticket extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'type',
+        'customer_id',
+        'mountain_id',  
         'valid_from',
         'valid_until',
-        'price',
-        'is_active',
     ];
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function mountain(): BelongsTo
+    {
+        return $this->belongsTo(Mountain::class);
+    }
+
+    public function lifts(): HasManyThrough
+    {
+        return $this->hasManyThrough(SkiLift::class, Mountain::class);
+    }
+
+    public function ticket(): HasOneThrough
+    {
+        return $this->hasOneThrough(Ticket::class, Customer::class);
+    }
 } 

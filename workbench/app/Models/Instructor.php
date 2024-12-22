@@ -4,20 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Alvin0\RedisModel\Traits\HasRedisRelationships;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Instructor extends Model
 {
     use HasRedisRelationships;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'name',
-        'certification_level',
-        'specialties',
-        'status',
-    ];
+    protected $guarded = [];
+
+    public function mountain(): BelongsTo
+    {
+        return $this->belongsTo(Mountain::class);
+    }
 } 

@@ -30,4 +30,9 @@ class Customer extends Model
         'name',
         'email',
     ];
+
+    public function rental()
+    {
+        return $this->hasOne(Rental::class);
+    }
 } 

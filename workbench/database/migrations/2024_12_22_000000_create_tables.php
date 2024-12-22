@@ -32,30 +32,38 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('lifts', function (Blueprint $table) {
+        Schema::create('ski_lifts', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->foreignId('mountain_id')->constrained('mountains');
-            $table->unsignedInteger('starting_trail_id')->index();
-            $table->unsignedInteger('ending_trail_id')->index();
+            $table->foreignId('mountain_id');
+            $table->string('starting_trail_id')->index(); // Redis Key
+            $table->string('ending_trail_id')->index(); // Redis Key
             $table->timestamps();
         });
+
+        /*
+         * Lift Chairs
+         * - string: id
+         * - integer: lift_id
+         */
 
         Schema::create('instructors', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->foreignId('mountain_id');
             $table->timestamps();
         });
 
         Schema::create('operators', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->foreignId('ski_lift_id');
             $table->timestamps();
         });
 
         Schema::create('equipment', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->enum('type', ['ski', 'snowboard', 'helmet', 'boots', 'poles', 'goggles']);
             $table->string('brand_slug')->index(); // Redis Key
             $table->timestamps();
         });
