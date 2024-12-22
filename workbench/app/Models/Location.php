@@ -15,4 +15,9 @@ class Location extends Model
         'id', // State (like "CA")
         'name', // Full name (like "California")
     ];
+
+    public function mountains()
+    {
+        return $this->hasMany(Mountain::class);
+    }
 } 
