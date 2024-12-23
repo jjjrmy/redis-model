@@ -29,6 +29,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('location_id')->index(); // Redis Key
+            $table->string('company_id')->index(); // Redis Key
             $table->timestamps();
         });
 

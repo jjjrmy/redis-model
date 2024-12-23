@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Alvin0\RedisModel\Model;
 
-class Location extends Model
+class Company extends Model
 {
     /**
      * The attributes that are mass assignable.
@@ -12,17 +12,12 @@ class Location extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'id', // State (like "CA")
-        'name', // Full name (like "California")
+        'id',
+        'name',
     ];
 
     public function mountain()
     {
         return $this->hasOne(Mountain::class);
-    }
-
-    public function mountains()
-    {
-        return $this->hasMany(Mountain::class);
     }
 } 

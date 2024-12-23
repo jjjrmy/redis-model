@@ -43,9 +43,4 @@ class Ticket extends Model
     {
         return $this->hasManyThrough(SkiLift::class, Mountain::class);
     }
-
-    public function ticket(): HasOneThrough
-    {
-        return $this->hasOneThrough(Ticket::class, Customer::class);
-    }
 } 

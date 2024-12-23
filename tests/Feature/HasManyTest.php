@@ -2,7 +2,7 @@
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Alvin0\RedisModel\Model as RedisModel;
-use Illuminate\Support\Str;
+use Illuminate\Support\Collection;
 
 it('can get relationships', function (
     EloquentModel|RedisModel $parent,
@@ -12,43 +12,45 @@ it('can get relationships', function (
     expect($parent)
         ->toBeInstanceOf($expected['parent']);
     expect($parent->{$expected['relationship']})
+        ->toBeInstanceOf(Collection::class)
+        ->first()
         ->toBeInstanceOf(get_class($child))
         ->toBeInstanceOf($expected['child']);
 })->with([
-    'Eloquent -(hasOne)-> Eloquent' => [
+    'Eloquent -(hasMany)-> Eloquent' => [
+        fn () => \App\Models\Mountain::create(['name' => 'Big Bear', 'location_id' => 'CA', 'company_id' => 'alterra']),
         fn () => \App\Models\SkiLift::create(['name' => 'Snow Valley Express', 'mountain_id' => 1, 'starting_trail_id' => Str::uuid(), 'ending_trail_id' => Str::uuid()]),
-        fn () => \App\Models\Operator::create(['name' => 'Taylor Otwell', 'ski_lift_id' => 1]),
         [
             'parent' => EloquentModel::class,
             'child' => EloquentModel::class,
-            'relationship' => 'operator',
+            'relationship' => 'skiLifts',
         ]
     ],
-    'Eloquent -(hasOne)-> Redis' => [
-        fn () => \App\Models\Equipment::create(['type' => 'ski', 'brand_slug' => 'blizzard']),
-        fn () => \App\Models\Rental::create(['customer_id' => 1, 'equipment_id' => 1, 'start_date' => '2023-12-01', 'end_date' => '2023-12-10']),
+    'Eloquent -(hasMany)-> Redis' => [
+        fn () => \App\Models\Mountain::create(['name' => 'Big Bear', 'location_id' => 'CA', 'company_id' => 'alterra']),
+        fn () => \App\Models\Trail::create(['name' => 'Mambo Alley', 'mountain_id' => 1]),
         [
             'parent' => EloquentModel::class,
             'child' => RedisModel::class,
-            'relationship' => 'rental',
+            'relationship' => 'trails',
         ]
     ],
-    'Redis -(hasOne)-> Eloquent' => [
-        fn () => \App\Models\Company::create(['id' => 'alterra', 'name' => 'Alterra Mountain Company']),
-        fn () => \App\Models\Mountain::create(['name' => 'Big Bear', 'company_id' => 'alterra', 'location_id' => 'CA']),
+    'Redis -(hasMany)-> Eloquent' => [
+        fn () => \App\Models\Location::create(['id' => 'CA', 'name' => 'California']),
+        fn () => \App\Models\Mountain::create(['name' => 'Big Bear', 'location_id' => 'CA', 'company_id' => 'alterra']),
         [
             'parent' => RedisModel::class,
             'child' => EloquentModel::class,
-            'relationship' => 'mountain',
+            'relationship' => 'mountains',
         ]
     ],
-    'Redis -(hasOne)-> Redis' => [
+    'Redis -(hasMany)-> Redis' => [
         fn () => \App\Models\Customer::create(['id' => '1', 'name' => 'John Doe', 'email' => 'john@doe.com']),
-        fn () => \App\Models\Rental::create(['id' => '1', 'customer_id' => '1', 'equipment_id' => '1']),
+        fn () => \App\Models\Ticket::create(['customer_id' => '1', 'mountain_id' => 1, 'valid_from' => '2023-12-01', 'valid_until' => '2023-12-10']),
         [
             'parent' => RedisModel::class,
             'child' => RedisModel::class,
-            'relationship' => 'rental',
+            'relationship' => 'tickets',
         ]
     ],
 ]);
