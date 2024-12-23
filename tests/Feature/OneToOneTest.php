@@ -177,3 +177,143 @@ it('can eager load belongsTo relationships', function (
         ->toBeInstanceOf(get_class($parent))
         ->toBeInstanceOf($expected['parent']);
 })->with('OneToOne');
+
+it('can lazy load hasOne relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    // Get a fresh instance of the model without the relationship loaded
+    $modelClass = get_class($parent);
+    $result = $modelClass::first();
+    
+    // Verify relationship is not loaded
+    expect($result->relationLoaded($expected['hasOne']))
+        ->toBeFalse();
+    
+    // Load the relationship
+    $result->load($expected['hasOne']);
+    
+    // Verify relationship is now loaded
+    expect($result->relationLoaded($expected['hasOne']))
+        ->toBeTrue();
+    
+    expect($result)
+        ->toBeInstanceOf($expected['parent'])
+        ->and($result->{$expected['hasOne']})
+        ->toBeInstanceOf(get_class($child))
+        ->toBeInstanceOf($expected['child']);
+})->with('OneToOne');
+
+it('can lazy load belongsTo relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    // Get a fresh instance of the model without the relationship loaded
+    $modelClass = get_class($child);
+    $result = $modelClass::first();
+    
+    // Verify relationship is not loaded
+    expect($result->relationLoaded($expected['belongsTo']))
+        ->toBeFalse();
+    
+    // Load the relationship
+    $result->load($expected['belongsTo']);
+    
+    // Verify relationship is now loaded
+    expect($result->relationLoaded($expected['belongsTo']))
+        ->toBeTrue();
+    
+    expect($result)
+        ->toBeInstanceOf($expected['child'])
+        ->and($result->{$expected['belongsTo']})
+        ->toBeInstanceOf(get_class($parent))
+        ->toBeInstanceOf($expected['parent']);
+})->with('OneToOne');
+
+it('can lazy load multiple relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    // Get fresh instances of the models without relationships loaded
+    $parentClass = get_class($parent);
+    $childClass = get_class($child);
+    
+    $parentResult = $parentClass::first();
+    $childResult = $childClass::first();
+    
+    // Verify relationships are not loaded
+    expect($parentResult->relationLoaded($expected['hasOne']))
+        ->toBeFalse()
+        ->and($childResult->relationLoaded($expected['belongsTo']))
+        ->toBeFalse();
+    
+    // Load multiple relationships
+    $parentResult->load($expected['hasOne']);
+    $childResult->load($expected['belongsTo']);
+    
+    // Verify relationships are now loaded
+    expect($parentResult->relationLoaded($expected['hasOne']))
+        ->toBeTrue()
+        ->and($childResult->relationLoaded($expected['belongsTo']))
+        ->toBeTrue();
+    
+    // Verify parent relationship
+    expect($parentResult)
+        ->toBeInstanceOf($expected['parent'])
+        ->and($parentResult->{$expected['hasOne']})
+        ->toBeInstanceOf(get_class($child))
+        ->toBeInstanceOf($expected['child']);
+    
+    // Verify child relationship
+    expect($childResult)
+        ->toBeInstanceOf($expected['child'])
+        ->and($childResult->{$expected['belongsTo']})
+        ->toBeInstanceOf(get_class($parent))
+        ->toBeInstanceOf($expected['parent']);
+})->with('OneToOne');
+
+it('can lazy load missing relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    // Get fresh instances of the models without relationships loaded
+    $parentClass = get_class($parent);
+    $childClass = get_class($child);
+    
+    $parentResult = $parentClass::first();
+    $childResult = $childClass::first();
+    
+    // Verify relationships are not loaded
+    expect($parentResult->relationLoaded($expected['hasOne']))
+        ->toBeFalse()
+        ->and($childResult->relationLoaded($expected['belongsTo']))
+        ->toBeFalse();
+    
+    // Load missing relationships
+    $parentResult->loadMissing($expected['hasOne']);
+    $childResult->loadMissing($expected['belongsTo']);
+    
+    // Verify relationships are now loaded
+    expect($parentResult->relationLoaded($expected['hasOne']))
+        ->toBeTrue()
+        ->and($childResult->relationLoaded($expected['belongsTo']))
+        ->toBeTrue();
+    
+    // Verify parent relationship
+    expect($parentResult)
+        ->toBeInstanceOf($expected['parent'])
+        ->and($parentResult->{$expected['hasOne']})
+        ->toBeInstanceOf(get_class($child))
+        ->toBeInstanceOf($expected['child']);
+    
+    // Verify child relationship
+    expect($childResult)
+        ->toBeInstanceOf($expected['child'])
+        ->and($childResult->{$expected['belongsTo']})
+        ->toBeInstanceOf(get_class($parent))
+        ->toBeInstanceOf($expected['parent']);
+})->with('OneToOne');

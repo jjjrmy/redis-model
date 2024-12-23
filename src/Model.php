@@ -1081,6 +1081,45 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
 
         return $this;
     }
+
+    /**
+     * Eager load relation on the model.
+     *
+     * @param  array|string  $relations
+     * @return $this
+     */
+    public function load($relations)
+    {
+        $query = $this->newQuery()->with(
+            is_string($relations) ? func_get_args() : $relations
+        );
+
+        $query->eagerLoadRelations([$this]);
+
+        return $this;
+    }
+
+    /**
+     * Eager load relationships on the model if they are not already eager loaded.
+     *
+     * @param  array|string  $relations
+     * @return $this
+     */
+    public function loadMissing($relations)
+    {
+        $relations = is_string($relations) ? func_get_args() : $relations;
+
+        $missedRelations = array_filter($relations, function ($relation) {
+            return ! $this->relationLoaded($relation);
+        });
+
+        if (empty($missedRelations)) {
+            return $this;
+        }
+
+        return $this->load($missedRelations);
+    }
+
     /**
      * Prepare the object for serialization.
      *

@@ -188,3 +188,128 @@ it('can eager load belongsToMany relationships', function (
                 ->toBeInstanceOf(get_class($child))
         );
 })->with('ManyToMany');
+
+it('can lazy load belongsToMany relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    // Attach the relationship first
+    $parent->{$expected['belongsToMany']}()->attach($child->id);
+
+    // Get a fresh instance of the model without the relationship loaded
+    $modelClass = get_class($parent);
+    $result = $modelClass::first();
+    
+    // Verify relationship is not loaded
+    expect($result->relationLoaded($expected['belongsToMany']))
+        ->toBeFalse();
+    
+    // Load the relationship
+    $result->load($expected['belongsToMany']);
+    
+    // Verify relationship is now loaded
+    expect($result->relationLoaded($expected['belongsToMany']))
+        ->toBeTrue();
+    
+    expect($result)
+        ->toBeInstanceOf($expected['parent'])
+        ->and($result->{$expected['belongsToMany']})
+        ->toBeCollection()
+        ->toHaveCount(1)
+        ->sequence(
+            fn ($item) => $item
+                ->toBeInstanceOf($expected['child'])
+                ->toBeInstanceOf(get_class($child))
+        );
+})->with('ManyToMany');
+
+it('can lazy load multiple belongsToMany relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    // Attach the relationship first
+    $parent->{$expected['belongsToMany']}()->attach($child->id);
+
+    // Get fresh instances of the models without the relationships loaded
+    $modelClass = get_class($parent);
+    $childClass = get_class($child);
+    $parentResult = $modelClass::first();
+    $childResult = $childClass::first();
+    
+    // Verify relationships are not loaded
+    expect($parentResult->relationLoaded($expected['belongsToMany']))
+        ->toBeFalse()
+        ->and($childResult->relationLoaded($expected['inverse']))
+        ->toBeFalse();
+    
+    // Load relationships
+    $parentResult->load($expected['belongsToMany']);
+    $childResult->load($expected['inverse']);
+    
+    // Verify relationships are now loaded
+    expect($parentResult->relationLoaded($expected['belongsToMany']))
+        ->toBeTrue()
+        ->and($childResult->relationLoaded($expected['inverse']))
+        ->toBeTrue();
+    
+    // Verify parent relationship
+    expect($parentResult)
+        ->toBeInstanceOf($expected['parent'])
+        ->and($parentResult->{$expected['belongsToMany']})
+        ->toBeCollection()
+        ->toHaveCount(1)
+        ->sequence(
+            fn ($item) => $item
+                ->toBeInstanceOf($expected['child'])
+                ->toBeInstanceOf(get_class($child))
+        );
+    
+    // Verify child relationship
+    expect($childResult)
+        ->toBeInstanceOf($expected['child'])
+        ->and($childResult->{$expected['inverse']})
+        ->toBeCollection()
+        ->toHaveCount(1)
+        ->sequence(
+            fn ($item) => $item
+                ->toBeInstanceOf($expected['parent'])
+                ->toBeInstanceOf(get_class($parent))
+        );
+})->with('ManyToMany');
+
+it('can lazy load missing belongsToMany relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    // Attach the relationship first
+    $parent->{$expected['belongsToMany']}()->attach($child->id);
+
+    // Get a fresh instance of the model without the relationship loaded
+    $modelClass = get_class($parent);
+    $result = $modelClass::first();
+    
+    // Verify relationship is not loaded
+    expect($result->relationLoaded($expected['belongsToMany']))
+        ->toBeFalse();
+    
+    // Load the missing relationship
+    $result->loadMissing($expected['belongsToMany']);
+    
+    // Verify relationship is now loaded
+    expect($result->relationLoaded($expected['belongsToMany']))
+        ->toBeTrue();
+    
+    expect($result)
+        ->toBeInstanceOf($expected['parent'])
+        ->and($result->{$expected['belongsToMany']})
+        ->toBeCollection()
+        ->toHaveCount(1)
+        ->sequence(
+            fn ($item) => $item
+                ->toBeInstanceOf($expected['child'])
+                ->toBeInstanceOf(get_class($child))
+        );
+})->with('ManyToMany');
