@@ -19,9 +19,11 @@ beforeEach(function () {
     });
 
     Schema::create('role_user', function (Blueprint $table) {
-        $table->foreignId('user_id');
-        $table->foreignId('role_id');
-        $table->primary(['user_id', 'role_id']);
+        $table->id();
+        $table->foreignId('user_id')->constrained()->onDelete('cascade');
+        $table->foreignId('role_id')->constrained()->onDelete('cascade');
+        $table->unique(['user_id', 'role_id']);
+        $table->timestamps();
     });
 });
 

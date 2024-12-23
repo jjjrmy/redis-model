@@ -2,6 +2,7 @@
 namespace Alvin0\RedisModel;
 
 use Illuminate\Redis\Connections\PhpRedisConnection;
+use Illuminate\Support\Facades\DB;
 
 class Builder
 {
@@ -23,6 +24,11 @@ class Builder
     /**
      * @var string
      */
+    protected $table;
+
+    /**
+     * @var string
+     */
     protected $hashPattern = "*";
 
     /**
@@ -33,7 +39,7 @@ class Builder
     /**
      * Create a new query builder instance.
      *
-     * @param  \Illuminate\Support\Facades\Redis  $connection
+     * @param  PhpRedisConnection  $connection
      * @return void
      */
     public function __construct(PhpRedisConnection $connection)
@@ -75,6 +81,30 @@ class Builder
         $this->setHashPattern($model->getTable() . ":*");
 
         return $this;
+    }
+
+    /**
+     * Set the table which the query is targeting.
+     *
+     * @param  string  $table
+     * @return $this
+     */
+    public function from($table)
+    {
+        $this->table = $table;
+        $this->repository->setTable($table);
+        return $this;
+    }
+
+    /**
+     * Insert new records into the database.
+     *
+     * @param  array  $values
+     * @return bool
+     */
+    public function insert(array $values)
+    {
+        return DB::table($this->table)->insert($values);
     }
 
     /**
@@ -364,5 +394,26 @@ class Builder
         }
 
         return $this->model->getTable() . ":" . rtrim($stringKey, ':');
+    }
+
+    /**
+     * Get the underlying query builder instance.
+     * This is required for pivot table operations.
+     *
+     * @return $this
+     */
+    public function getQuery()
+    {
+        return $this;
+    }
+
+    /**
+     * Create a new query instance for pivot query.
+     *
+     * @return $this
+     */
+    public function newQuery()
+    {
+        return new static($this->connection);
     }
 }

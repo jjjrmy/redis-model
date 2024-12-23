@@ -12,6 +12,13 @@ class RedisRepository
      */
     protected $connection;
 
+    /**
+     * The table name.
+     *
+     * @var string
+     */
+    protected $table;
+
     public function __construct(PhpRedisConnection $connection)
     {
         $this->connection = $connection;
@@ -28,11 +35,33 @@ class RedisRepository
     }
 
     /**
-     *Gets the Redis prefix for keys used by the Redis model.
-     *The prefix is determined by looking at the redis_model_options.prefix configuration value first,
-     *Then falling back to the database.redis.options.prefix configuration value.
+     * Set the table name.
      *
-     *@return string The Redis key prefix for this model.
+     * @param string $table
+     * @return $this
+     */
+    public function setTable($table)
+    {
+        $this->table = $table;
+        return $this;
+    }
+
+    /**
+     * Get the table name.
+     *
+     * @return string
+     */
+    public function getTable()
+    {
+        return $this->table;
+    }
+
+    /**
+     * Gets the Redis prefix for keys used by the Redis model.
+     * The prefix is determined by looking at the redis_model_options.prefix configuration value first,
+     * Then falling back to the database.redis.options.prefix configuration value.
+     *
+     * @return string The Redis key prefix for this model.
      */
     public function getRedisPrefix()
     {
@@ -166,7 +195,7 @@ class RedisRepository
 
                 return true;
             } catch (Exception $e) {
-                $transaction->discard();
+                $conTransaction->discard();
 
                 return false;
             }
@@ -354,5 +383,10 @@ class RedisRepository
         return array_map(function ($key) use ($prefix) {
             return str_replace($prefix, '', $key);
         }, $keys);
+    }
+
+    public function newQuery()
+    {
+        return new Builder($this->connection);
     }
 }

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Alvin0\RedisModel\Builder as RedisBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Alvin0\RedisModel\Relations\Concerns\InteractsWithPivot;
 
 /**
  * @template TRelatedModel of EloquentModel|RedisModel
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
  */
 class BelongsToMany extends \Illuminate\Database\Eloquent\Relations\BelongsToMany
 {
+    use InteractsWithPivot;
+
     /**
      * Create a new belongs to many relationship instance.
      *
