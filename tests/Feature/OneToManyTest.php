@@ -14,6 +14,7 @@ beforeEach(function () {
     Schema::create('comments', function (Blueprint $table) {
         $table->id();
         $table->foreignId('post_id');
+        $table->string('title');
         $table->timestamps();
     });
 });
@@ -53,7 +54,7 @@ class RedisPost extends RedisModel
 class EloquentComment extends EloquentModel
 {
     use \Alvin0\RedisModel\Traits\HasRedisRelationships;
-    protected $fillable = ['post_id'];
+    protected $fillable = ['post_id', 'title'];
     protected $table = 'comments';
     
     public function eloquentPost()
@@ -68,7 +69,8 @@ class EloquentComment extends EloquentModel
 }
 
 class RedisComment extends RedisModel {
-    protected $fillable = ['post_id'];
+    protected $fillable = ['post_id', 'title'];
+    protected $subKeys = ['title'];
     
     public function redisPost()
     {
@@ -84,7 +86,7 @@ class RedisComment extends RedisModel {
 dataset('OneToMany', [
     'Eloquent -(hasMany)-> Eloquent' => [
         fn () => EloquentPost::create(),
-        fn () => EloquentComment::create(['post_id' => 1]),
+        fn () => EloquentComment::create(['post_id' => 1, 'title' => 'foo']),
         [
             'parent' => EloquentModel::class,
             'child' => EloquentModel::class,
@@ -94,7 +96,7 @@ dataset('OneToMany', [
     ],
     'Eloquent -(hasMany)-> Redis' => [
         fn () => EloquentPost::create(['id' => 1]),
-        fn () => RedisComment::create(['post_id' => 1]),
+        fn () => RedisComment::create(['id' => 1, 'post_id' => 1, 'title' => 'foo']),
         [
             'parent' => EloquentModel::class,
             'child' => RedisModel::class,
@@ -104,7 +106,7 @@ dataset('OneToMany', [
     ],
     'Redis -(hasMany)-> Eloquent' => [
         fn () => RedisPost::create(['id' => 1]),
-        fn () => EloquentComment::create(['post_id' => 1]),
+        fn () => EloquentComment::create(['post_id' => 1, 'title' => 'foo']),
         [
             'parent' => RedisModel::class,
             'child' => EloquentModel::class,
@@ -114,7 +116,7 @@ dataset('OneToMany', [
     ],
     'Redis -(hasMany)-> Redis' => [
         fn () => RedisPost::create(['id' => 1]),
-        fn () => RedisComment::create(['post_id' => 1]),
+        fn () => RedisComment::create(['id' => 1, 'post_id' => 1, 'title' => 'foo']),
         [
             'parent' => RedisModel::class,
             'child' => RedisModel::class,
@@ -151,4 +153,24 @@ it('can get belongsTo relationships', function (
     expect($child->{$expected['belongsTo']})
         ->toBeInstanceOf(get_class($parent))
         ->toBeInstanceOf($expected['parent']);
+})->with('OneToMany');
+
+it('can query hasMany relationships with where clause', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    expect($parent)
+        ->toBeInstanceOf($expected['parent']);
+        
+    $relationship = $parent->{$expected['hasMany']}();
+    $result = $relationship->where('title', 'foo')->first();
+        
+    expect($result)
+        ->not->toBeNull()
+        ->toBeInstanceOf($expected['child'])
+        ->toBeInstanceOf(get_class($child));
+        
+    expect($result->title)
+        ->toBe('foo');
 })->with('OneToMany');
