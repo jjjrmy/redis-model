@@ -37,6 +37,13 @@ class Builder
     protected $conditionSession = [];
 
     /**
+     * The relationships that should be eager loaded.
+     *
+     * @var array
+     */
+    protected $eagerLoad = [];
+
+    /**
      * Create a new query builder instance.
      *
      * @param  PhpRedisConnection  $connection
@@ -168,7 +175,8 @@ class Builder
             $this->setConditionSession(array_merge($this->getConditionSession(), $column));
         }
 
-        $this->setHashPattern($this->compileHashByFields($this->getConditionSession()));
+        $pattern = $this->compileHashByFields($this->getConditionSession());
+        $this->setHashPattern($pattern);
 
         return $this;
     }
@@ -235,15 +243,35 @@ class Builder
      * @return \Alvin0\RedisModel\Collection|static[]
      *  Returns a collection of model instances or an empty collection if no result is found.
      */
-    public function get()
+    public function get($columns = ['*'])
     {
-        $models = [];
+        $models = $this->getModels($columns);
 
-        foreach ($this->getRepository()->fetchHashDataByPattern($this->getHashPattern()) as $hash => $attributes) {
-            $models[] = $this->model->newInstance($attributes, true, $hash, true)->syncOriginal();
+        if (count($models) > 0) {
+            $models = $this->eagerLoadRelations($models);
         }
 
-        return $this->getModel()->newCollection($models);
+        return $this->model->newCollection($models);
+    }
+
+    /**
+     * Eager load the relationships for the models.
+     *
+     * @param  array  $models
+     * @return array
+     */
+    public function eagerLoadRelations(array $models)
+    {
+        foreach ($this->eagerLoad as $name => $constraints) {
+            if (method_exists($this->model, $name)) {
+                $relation = $this->model->$name();
+                $relation->addEagerConstraints($models);
+                $results = $relation->getEager();
+                $relation->match($models, $results, $name);
+            }
+        }
+
+        return $models;
     }
 
     /**
@@ -408,6 +436,37 @@ class Builder
     }
 
     /**
+     * Apply the scopes to the Eloquent builder instance and return it.
+     *
+     * @return $this
+     */
+    public function applyScopes()
+    {
+        return $this;
+    }
+
+    /**
+     * Add a select statement to the query.
+     *
+     * @param  array|mixed  $columns
+     * @return $this
+     */
+    public function addSelect($columns)
+    {
+        return $this;
+    }
+
+    /**
+     * Get the columns for the query.
+     *
+     * @return array
+     */
+    public function getColumns()
+    {
+        return [];
+    }
+
+    /**
      * Create a new query instance for pivot query.
      *
      * @return $this
@@ -415,5 +474,77 @@ class Builder
     public function newQuery()
     {
         return new static($this->connection);
+    }
+
+    /**
+     * Set the relationships that should be eager loaded.
+     *
+     * @param  string|array  $relations
+     * @return $this
+     */
+    public function with($relations)
+    {
+        $eagerLoad = $this->parseWithRelations(is_string($relations) ? func_get_args() : $relations);
+        
+        $this->eagerLoad = array_merge($this->eagerLoad, $eagerLoad);
+        
+        return $this;
+    }
+
+    /**
+     * Parse a list of relations into individuals.
+     *
+     * @param  array  $relations
+     * @return array
+     */
+    protected function parseWithRelations(array $relations)
+    {
+        $results = [];
+
+        foreach ($relations as $name => $constraints) {
+            if (is_numeric($name)) {
+                $name = $constraints;
+                $constraints = function () {};
+            }
+
+            $results[$name] = $constraints;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Get the hydrated models without eager loading.
+     *
+     * @param  array  $columns
+     * @return \Alvin0\RedisModel\Model[]
+     */
+    public function getModels($columns = ['*'])
+    {
+        $models = [];
+
+        foreach ($this->getRepository()->fetchHashDataByPattern($this->getHashPattern()) as $hash => $attributes) {
+            $models[] = $this->model->newInstance($attributes, true, $hash, true)->syncOriginal();
+        }
+
+        return $models;
+    }
+
+    /**
+     * Get the first record matching the attributes or create it.
+     *
+     * @param  array  $attributes
+     * @param  array  $values
+     * @return \Alvin0\RedisModel\Model
+     */
+    public function firstOrCreate(array $attributes = [], array $values = [])
+    {
+        $model = $this->where($attributes)->first();
+
+        if ($model) {
+            return $model;
+        }
+
+        return $this->create($values);
     }
 }

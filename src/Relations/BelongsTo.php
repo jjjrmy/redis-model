@@ -8,6 +8,7 @@ use Alvin0\RedisModel\Model as RedisModel;
 use Alvin0\RedisModel\Collection as RedisCollection;
 use Illuminate\Database\Eloquent\Builder;
 use Alvin0\RedisModel\Builder as RedisBuilder;
+use Alvin0\RedisModel\Relations\Concerns\SupportsDefaultModels;
 
 /**
  * @template TRelatedModel of EloquentModel|RedisModel
@@ -16,6 +17,15 @@ use Alvin0\RedisModel\Builder as RedisBuilder;
  */
 class BelongsTo extends \Illuminate\Database\Eloquent\Relations\BelongsTo
 {
+    use SupportsDefaultModels;
+
+    /**
+     * The keys for eager loading.
+     *
+     * @var array
+     */
+    protected $eagerKeys = [];
+
     /**
      * Create a new belongs to relationship instance.
      *
@@ -23,14 +33,14 @@ class BelongsTo extends \Illuminate\Database\Eloquent\Relations\BelongsTo
      * @param  TDeclaringModel  $child
      * @param  string  $foreignKey
      * @param  string  $ownerKey
-     * @param  string|null  $relationName
+     * @param  string  $relation
      * @return void
      */
-    public function __construct(Builder|RedisBuilder $query, EloquentModel|RedisModel $child, string $foreignKey, string $ownerKey, ?string $relationName = null)
+    public function __construct(Builder|RedisBuilder $query, EloquentModel|RedisModel $child, string $foreignKey, string $ownerKey, string $relation)
     {
         $this->ownerKey = $ownerKey;
         $this->foreignKey = $foreignKey;
-        $this->relationName = $relationName;
+        $this->relationName = $relation;
         $this->child = $child;
 
         // Initialize the relation without calling parent constructor
@@ -43,18 +53,43 @@ class BelongsTo extends \Illuminate\Database\Eloquent\Relations\BelongsTo
     /**
      * Set the constraints for an eager load of the relation.
      *
-     * @param  array<int, TDeclaringModel>  $models
+     * @param  array  $models
      * @return void
      */
     public function addEagerConstraints(array $models)
     {
-        $keys = collect($models)->map(function ($model) {
+        $this->eagerKeys = collect($models)->map(function ($model) {
             return $model->{$this->foreignKey};
         })->filter()->values()->all();
+    }
 
-        if (!($this->child instanceof EloquentModel && $this->related instanceof RedisModel)) {
-            $this->query->whereIn($this->ownerKey, $keys);
+    /**
+     * Match the eagerly loaded results to their parents.
+     *
+     * @param  array  $models
+     * @param  \Illuminate\Database\Eloquent\Collection|\Alvin0\RedisModel\Collection  $results
+     * @param  string  $relation
+     * @return array
+     */
+    public function match(array $models, $results, $relation)
+    {
+        $foreign = $this->foreignKey;
+        $owner = $this->ownerKey;
+
+        $dictionary = [];
+        foreach ($results as $result) {
+            $dictionary[(string)$result->{$owner}] = $result;
         }
+
+        foreach ($models as $model) {
+            $key = $model->{$foreign};
+            
+            if (isset($dictionary[(string)$key])) {
+                $model->setRelation($relation, $dictionary[(string)$key]);
+            }
+        }
+
+        return $models;
     }
 
     /**
@@ -65,7 +100,7 @@ class BelongsTo extends \Illuminate\Database\Eloquent\Relations\BelongsTo
     public function getResults()
     {
         if (is_null($this->child->{$this->foreignKey})) {
-            return null;
+            return $this->getDefaultFor($this->child);
         }
 
         if ($this->child instanceof EloquentModel && $this->related instanceof RedisModel) {
@@ -103,23 +138,21 @@ class BelongsTo extends \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function getEager()
     {
-        if ($this->related instanceof RedisModel) {
-            $results = new RedisCollection();
+        $results = $this->related instanceof RedisModel ? new RedisCollection() : new Collection();
             
-            $keys = collect([$this->child])->map(function ($model) {
-                return $model->{$this->foreignKey};
-            })->filter()->values()->all();
-            
-            foreach ($keys as $key) {
-                if ($record = $this->related::where($this->ownerKey, $key)->first()) {
+        foreach ($this->eagerKeys as $key) {
+            if ($this->related instanceof RedisModel) {
+                if ($record = $this->related::where($this->ownerKey, (string)$key)->first()) {
+                    $results->push($record);
+                }
+            } else {
+                if ($record = $this->query->where($this->ownerKey, '=', $key)->first()) {
                     $results->push($record);
                 }
             }
-
-            return $results;
         }
 
-        return parent::getEager();
+        return $results;
     }
 
     /**
@@ -131,5 +164,16 @@ class BelongsTo extends \Illuminate\Database\Eloquent\Relations\BelongsTo
     protected function getForeignKeyFrom(EloquentModel|RedisModel $model)
     {
         return $model->{$this->foreignKey};
+    }
+
+    /**
+     * Make a new related instance for the given model.
+     *
+     * @param  EloquentModel|RedisModel  $parent
+     * @return EloquentModel|RedisModel
+     */
+    protected function newRelatedInstanceFor(EloquentModel|RedisModel $parent)
+    {
+        return $this->related->newInstance();
     }
 } 

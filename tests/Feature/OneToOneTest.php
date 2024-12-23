@@ -147,3 +147,33 @@ it('can get belongsTo relationships', function (
         ->toBeInstanceOf(get_class($parent))
         ->toBeInstanceOf($expected['parent']);
 })->with('OneToOne');
+
+it('can eager load hasOne relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    $modelClass = get_class($parent);
+    $result = $modelClass::with($expected['hasOne'])->first();
+    
+    expect($result)
+        ->toBeInstanceOf($expected['parent'])
+        ->and($result->{$expected['hasOne']})
+        ->toBeInstanceOf(get_class($child))
+        ->toBeInstanceOf($expected['child']);
+})->with('OneToOne');
+
+it('can eager load belongsTo relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    $modelClass = get_class($child);
+    $result = $modelClass::with($expected['belongsTo'])->first();
+    
+    expect($result)
+        ->toBeInstanceOf($expected['child'])
+        ->and($result->{$expected['belongsTo']})
+        ->toBeInstanceOf(get_class($parent))
+        ->toBeInstanceOf($expected['parent']);
+})->with('OneToOne');

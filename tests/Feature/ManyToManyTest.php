@@ -92,43 +92,43 @@ class RedisRole extends RedisModel {
 
 dataset('ManyToMany', [
     'Eloquent -(belongsToMany)-> Eloquent' => [
-        fn () => EloquentUser::create(['name' => 'John']),
-        fn () => EloquentRole::create(['name' => 'Admin']),
+        fn () => EloquentUser::create(['id' => 1, 'name' => 'John']),
+        fn () => EloquentRole::create(['id' => 1, 'name' => 'Admin']),
         [
-            'first' => EloquentModel::class,
-            'second' => EloquentModel::class,
-            'firstRelation' => 'eloquentRoles',
-            'secondRelation' => 'eloquentUsers',
+            'parent' => EloquentModel::class,
+            'child' => EloquentModel::class,
+            'belongsToMany' => 'eloquentRoles',
+            'inverse' => 'eloquentUsers'
         ]
     ],
     'Eloquent -(belongsToMany)-> Redis' => [
         fn () => EloquentUser::create(['id' => 1, 'name' => 'John']),
         fn () => RedisRole::create(['id' => 1, 'name' => 'Admin']),
         [
-            'first' => EloquentModel::class,
-            'second' => RedisModel::class,
-            'firstRelation' => 'redisRoles',
-            'secondRelation' => 'eloquentUsers',
+            'parent' => EloquentModel::class,
+            'child' => RedisModel::class,
+            'belongsToMany' => 'redisRoles',
+            'inverse' => 'eloquentUsers'
         ]
     ],
     'Redis -(belongsToMany)-> Eloquent' => [
         fn () => RedisUser::create(['id' => 1, 'name' => 'John']),
         fn () => EloquentRole::create(['id' => 1, 'name' => 'Admin']),
         [
-            'first' => RedisModel::class,
-            'second' => EloquentModel::class,
-            'firstRelation' => 'eloquentRoles',
-            'secondRelation' => 'redisUsers',
+            'parent' => RedisModel::class,
+            'child' => EloquentModel::class,
+            'belongsToMany' => 'eloquentRoles',
+            'inverse' => 'redisUsers'
         ]
     ],
     'Redis -(belongsToMany)-> Redis' => [
         fn () => RedisUser::create(['id' => 1, 'name' => 'John']),
         fn () => RedisRole::create(['id' => 1, 'name' => 'Admin']),
         [
-            'first' => RedisModel::class,
-            'second' => RedisModel::class,
-            'firstRelation' => 'redisRoles',
-            'secondRelation' => 'redisUsers',
+            'parent' => RedisModel::class,
+            'child' => RedisModel::class,
+            'belongsToMany' => 'redisRoles',
+            'inverse' => 'redisUsers'
         ]
     ],
 ]);
@@ -139,29 +139,52 @@ it('can attach and get belongsToMany relationships', function (
     array $expected
 ) {
     // Attach the relationship
-    $first->{$expected['firstRelation']}()->attach($second->id);
+    $first->{$expected['belongsToMany']}()->attach($second->id);
 
     // Test first model's relationship
     expect($first)
-        ->toBeInstanceOf($expected['first']);
-    expect($first->{$expected['firstRelation']})
+        ->toBeInstanceOf($expected['parent']);
+    expect($first->{$expected['belongsToMany']})
         ->toBeCollection()
         ->toHaveCount(1)
         ->sequence(
             fn ($item) => $item
-                ->toBeInstanceOf($expected['second'])
+                ->toBeInstanceOf($expected['child'])
                 ->toBeInstanceOf(get_class($second))
         );
 
     // Test second model's relationship
     expect($second)
-        ->toBeInstanceOf($expected['second']);
-    expect($second->{$expected['secondRelation']})
+        ->toBeInstanceOf($expected['child']);
+    expect($second->{$expected['inverse']})
         ->toBeCollection()
         ->toHaveCount(1)
         ->sequence(
             fn ($item) => $item
-                ->toBeInstanceOf($expected['first'])
+                ->toBeInstanceOf($expected['parent'])
                 ->toBeInstanceOf(get_class($first))
+        );
+})->with('ManyToMany');
+
+it('can eager load belongsToMany relationships', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    // Attach the relationship first
+    $parent->{$expected['belongsToMany']}()->attach($child->id);
+
+    $modelClass = get_class($parent);
+    $result = $modelClass::with($expected['belongsToMany'])->first();
+    
+    expect($result)
+        ->toBeInstanceOf($expected['parent'])
+        ->and($result->{$expected['belongsToMany']})
+        ->toBeCollection()
+        ->toHaveCount(1)
+        ->sequence(
+            fn ($item) => $item
+                ->toBeInstanceOf($expected['child'])
+                ->toBeInstanceOf(get_class($child))
         );
 })->with('ManyToMany');

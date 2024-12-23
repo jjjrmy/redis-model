@@ -22,6 +22,27 @@ class BelongsToMany extends \Illuminate\Database\Eloquent\Relations\BelongsToMan
     use InteractsWithPivot;
 
     /**
+     * The foreign key of the parent model.
+     *
+     * @var string
+     */
+    protected $foreignPivotKey;
+
+    /**
+     * The associated key of the relation.
+     *
+     * @var string
+     */
+    protected $relatedPivotKey;
+
+    /**
+     * The keys of the parent models.
+     *
+     * @var array
+     */
+    protected $eagerKeys = [];
+
+    /**
      * Create a new belongs to many relationship instance.
      *
      * @param  Builder|RedisBuilder  $query
@@ -81,16 +102,9 @@ class BelongsToMany extends \Illuminate\Database\Eloquent\Relations\BelongsToMan
      */
     public function addEagerConstraints(array $models)
     {
-        if ($this->parent instanceof RedisModel || $this->related instanceof RedisModel) {
-            return;
-        }
-
-        $this->query->whereIn(
-            $this->getQualifiedForeignPivotKeyName(),
-            collect($models)->map(function ($model) {
-                return $model->{$this->parentKey};
-            })->all()
-        );
+        $this->eagerKeys = collect($models)->map(function ($model) {
+            return $model->{$this->parentKey};
+        })->all();
     }
 
     /**
@@ -98,7 +112,7 @@ class BelongsToMany extends \Illuminate\Database\Eloquent\Relations\BelongsToMan
      *
      * @return Collection|RedisCollection
      */
-    public function getResults()
+    public function get($columns = ['*'])
     {
         if ($this->parent instanceof RedisModel || $this->related instanceof RedisModel) {
             $parentKey = $this->parent->{$this->parentKey};
@@ -110,7 +124,10 @@ class BelongsToMany extends \Illuminate\Database\Eloquent\Relations\BelongsToMan
                     : new Collection;
             }
 
-            $results = collect();
+            $results = $this->related instanceof RedisModel 
+                ? new RedisCollection 
+                : new Collection;
+
             foreach ($relatedIds as $id) {
                 if ($model = $this->related::find($id)) {
                     $pivotData = $this->getPivotData($parentKey, $id);
@@ -124,7 +141,7 @@ class BelongsToMany extends \Illuminate\Database\Eloquent\Relations\BelongsToMan
             return $results;
         }
 
-        return parent::getResults();
+        return parent::get($columns);
     }
 
     /**
@@ -223,5 +240,91 @@ class BelongsToMany extends \Illuminate\Database\Eloquent\Relations\BelongsToMan
         }
 
         return parent::newPivotInstance($attributes, $exists);
+    }
+
+    /**
+     * Match the eagerly loaded results to their parents.
+     *
+     * @param  array<int, TDeclaringModel>  $models
+     * @param  Collection|RedisCollection  $results
+     * @param  string  $relation
+     * @return array<int, TDeclaringModel>
+     */
+    public function match(array $models, $results, $relation)
+    {
+        if ($this->parent instanceof RedisModel || $this->related instanceof RedisModel) {
+            $dictionary = $this->buildDictionary($results);
+
+            foreach ($models as $model) {
+                $key = (string) $model->{$this->parentKey};
+
+                if (isset($dictionary[$key])) {
+                    $model->setRelation($relation, $dictionary[$key]);
+                } else {
+                    $model->setRelation($relation, $this->related->newCollection());
+                }
+            }
+
+            return $models;
+        }
+
+        return parent::match($models, $results, $relation);
+    }
+
+    /**
+     * Build model dictionary keyed by the relation's foreign key.
+     *
+     * @param  Collection|RedisCollection  $results
+     * @return array<string, Collection|RedisCollection>
+     */
+    protected function buildDictionary($results)
+    {
+        $dictionary = [];
+
+        foreach ($results as $result) {
+            $key = (string) $result->pivot->{$this->foreignPivotKey};
+
+            if (! isset($dictionary[$key])) {
+                $dictionary[$key] = $this->related instanceof RedisModel 
+                    ? new RedisCollection 
+                    : new Collection;
+            }
+
+            $dictionary[$key]->push($result);
+        }
+
+        return $dictionary;
+    }
+
+    /**
+     * Get the eager loads for the relation.
+     *
+     * @return Collection<int, TRelatedModel>
+     */
+    public function getEager()
+    {
+        if ($this->parent instanceof RedisModel || $this->related instanceof RedisModel) {
+            $results = $this->related instanceof RedisModel 
+                ? new RedisCollection 
+                : new Collection;
+            
+            foreach ($this->eagerKeys as $key) {
+                $relatedIds = $this->getPivotIds($key);
+                
+                foreach ($relatedIds as $id) {
+                    if ($model = $this->related::find($id)) {
+                        $pivotData = $this->getPivotData($key, $id);
+                        $pivot = $this->newExistingPivot($pivotData);
+                        
+                        $model->setRelation($this->accessor, $pivot);
+                        $results->push($model);
+                    }
+                }
+            }
+            
+            return $results;
+        }
+
+        return new Collection(parent::getEager());
     }
 } 

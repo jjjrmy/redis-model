@@ -87,13 +87,9 @@ class HasMany extends \Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function addEagerConstraints(array $models)
     {
-        $keys = collect($models)->map(function ($model) {
+        $this->eagerKeys = collect($models)->map(function ($model) {
             return $model->{$this->localKey};
         })->all();
-
-        if (!($this->parent instanceof EloquentModel && $this->related instanceof RedisModel)) {
-            $this->query->whereIn($this->foreignKey, $keys);
-        }
     }
 
     /**
@@ -140,19 +136,23 @@ class HasMany extends \Illuminate\Database\Eloquent\Relations\HasMany
      * Match the eagerly loaded results to their parents.
      *
      * @param  array  $models
-     * @param  \Illuminate\Database\Eloquent\Collection  $results
+     * @param  \Illuminate\Database\Eloquent\Collection|\Alvin0\RedisModel\Collection  $results
      * @param  string  $relation
      * @return array
      */
-    public function match(array $models, Collection $results, $relation)
+    public function match(array $models, $results, $relation)
     {
         $dictionary = $this->buildDictionary($results);
 
         foreach ($models as $model) {
             $key = $model->{$this->localKey};
             
-            if (isset($dictionary[$key])) {
-                $model->setRelation($relation, new Collection($dictionary[$key]));
+            if (isset($dictionary[(string)$key])) {
+                $collection = $this->related instanceof RedisModel 
+                    ? new RedisCollection($dictionary[(string)$key])
+                    : new Collection($dictionary[(string)$key]);
+                    
+                $model->setRelation($relation, $collection);
             }
         }
 
@@ -162,15 +162,16 @@ class HasMany extends \Illuminate\Database\Eloquent\Relations\HasMany
     /**
      * Build model dictionary keyed by the relation's foreign key.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection  $results
+     * @param  \Illuminate\Database\Eloquent\Collection|\Alvin0\RedisModel\Collection  $results
      * @return array
      */
-    protected function buildDictionary(Collection $results)
+    protected function buildDictionary($results)
     {
         $dictionary = [];
 
         foreach ($results as $result) {
-            $dictionary[$result->{$this->foreignKey}][] = $result;
+            $foreignKey = str_replace($this->related->getTable().'.', '', $this->foreignKey);
+            $dictionary[(string)$result->{$foreignKey}][] = $result;
         }
 
         return $dictionary;
@@ -200,20 +201,38 @@ class HasMany extends \Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function getEager()
     {
-        if ($this->related instanceof RedisModel) {
-            $results = new RedisCollection();
+        $results = $this->related instanceof RedisModel ? new RedisCollection() : new Collection();
             
-            foreach ($this->getEagerModelKeys($this->parent) as $key) {
-                $records = $this->query->where($this->foreignKey, $key)->get();
+        foreach ($this->getEagerModelKeys() as $key) {
+            if ($this->parent instanceof EloquentModel && $this->related instanceof RedisModel) {
+                $records = $this->related::where($this->foreignKey, (string)$key)->get();
+                foreach ($records as $record) {
+                    $results->push($record);
+                }
+            } else if ($this->related instanceof RedisModel) {
+                $records = $this->related::where($this->foreignKey, (string)$key)->get();
+                foreach ($records as $record) {
+                    $results->push($record);
+                }
+            } else {
+                $records = $this->query->where($this->foreignKey, '=', $key)->get();
                 foreach ($records as $record) {
                     $results->push($record);
                 }
             }
-
-            return $results;
         }
 
-        return parent::getEager();
+        return $results;
+    }
+
+    /**
+     * Get the keys for eager loading.
+     *
+     * @return array
+     */
+    protected function getEagerModelKeys()
+    {
+        return collect($this->eagerKeys)->unique()->values()->all();
     }
 
     /**

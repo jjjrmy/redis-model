@@ -220,6 +220,19 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     protected static $modelsShouldPreventAccessingMissingAttributes = false;
 
     /**
+     * Begin querying the model with eager loading.
+     *
+     * @param  array|string  $relations
+     * @return \Alvin0\RedisModel\Builder
+     */
+    public static function with($relations)
+    {
+        return static::query()->with(
+            is_string($relations) ? func_get_args() : $relations
+        );
+    }
+
+    /**
      * Get the value indicating whether the IDs are incrementing.
      *
      * @return bool
@@ -1350,5 +1363,20 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     public static function preventsAccessingMissingAttributes()
     {
         return static::$modelsShouldPreventAccessingMissingAttributes;
+    }
+
+    /**
+     * Force fill the model with an array of attributes.
+     *
+     * @param  array  $attributes
+     * @return $this
+     */
+    public function forceFill(array $attributes)
+    {
+        foreach ($attributes as $key => $value) {
+            $this->setAttribute($key, $value);
+        }
+
+        return $this;
     }
 }

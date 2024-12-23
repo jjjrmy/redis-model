@@ -17,6 +17,13 @@ use Alvin0\RedisModel\Builder as RedisBuilder;
 class HasOne extends \Illuminate\Database\Eloquent\Relations\HasOne
 {
     /**
+     * The keys for eager loading.
+     *
+     * @var array
+     */
+    protected $eagerKeys = [];
+
+    /**
      * Create a new has one relationship instance.
      *
      * @param  Builder|RedisBuilder  $query
@@ -60,13 +67,9 @@ class HasOne extends \Illuminate\Database\Eloquent\Relations\HasOne
      */
     public function addEagerConstraints(array $models)
     {
-        $keys = collect($models)->map(function ($model) {
+        $this->eagerKeys = collect($models)->map(function ($model) {
             return $model->{$this->localKey};
         })->all();
-
-        if (!($this->related instanceof RedisModel)) {
-            $this->query->whereIn($this->foreignKey, $keys);
-        }
     }
 
     /**
@@ -113,20 +116,35 @@ class HasOne extends \Illuminate\Database\Eloquent\Relations\HasOne
      */
     public function getEager()
     {
-        if ($this->related instanceof RedisModel) {
-            $results = new RedisCollection();
-            $records = $this->related::all();
+        $results = $this->related instanceof RedisModel ? new RedisCollection() : new Collection();
             
-            foreach ($records as $record) {
-                if (in_array($record->{$this->getForeignKeyName()}, $this->getEagerModelKeys($this->parent))) {
+        foreach ($this->getEagerModelKeys() as $key) {
+            if ($this->parent instanceof EloquentModel && $this->related instanceof RedisModel) {
+                if ($record = $this->related::where($this->foreignKey, (string)$key)->first()) {
+                    $results->push($record);
+                }
+            } else if ($this->related instanceof RedisModel) {
+                if ($record = $this->related::where($this->foreignKey, (string)$key)->first()) {
+                    $results->push($record);
+                }
+            } else {
+                if ($record = $this->query->where($this->foreignKey, '=', $key)->first()) {
                     $results->push($record);
                 }
             }
-
-            return $results;
         }
 
-        return parent::getEager();
+        return $results;
+    }
+
+    /**
+     * Get the keys for eager loading.
+     *
+     * @return array
+     */
+    protected function getEagerModelKeys()
+    {
+        return collect($this->eagerKeys)->unique()->values()->all();
     }
 
     /**
@@ -143,5 +161,33 @@ class HasOne extends \Illuminate\Database\Eloquent\Relations\HasOne
         $instance->save();
 
         return $instance;
+    }
+
+    /**
+     * Match the eagerly loaded results to their parents.
+     *
+     * @param  array  $models
+     * @param  \Illuminate\Database\Eloquent\Collection|\Alvin0\RedisModel\Collection  $results
+     * @param  string  $relation
+     * @return array
+     */
+    public function match(array $models, $results, $relation)
+    {
+        $dictionary = [];
+
+        foreach ($results as $result) {
+            $foreignKey = str_replace($this->related->getTable().'.', '', $this->foreignKey);
+            $dictionary[(string)$result->{$foreignKey}] = $result;
+        }
+
+        foreach ($models as $model) {
+            $key = $model->{$this->localKey};
+            
+            if (isset($dictionary[(string)$key])) {
+                $model->setRelation($relation, $dictionary[(string)$key]);
+            }
+        }
+
+        return $models;
     }
 } 
