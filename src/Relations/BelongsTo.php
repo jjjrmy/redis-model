@@ -174,6 +174,11 @@ class BelongsTo extends \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     protected function newRelatedInstanceFor(EloquentModel|RedisModel $parent)
     {
-        return $this->related->newInstance();
+        $instance = $this->related->newInstance();
+        
+        // Ensure the ID is null for both Redis and Eloquent models
+        $instance->setAttribute($instance->getKeyName(), null);
+        
+        return $instance;
     }
 } 

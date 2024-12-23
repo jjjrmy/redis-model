@@ -169,4 +169,31 @@ trait HasRedisRelationships
             }
         });
     }
+
+    public function withDefault($callback = true)
+    {
+        $this->withDefault = true;
+        $this->defaultCallback = $callback;
+
+        return $this;
+    }
+
+    protected function getDefaultFor($parent)
+    {
+        if (! $this->withDefault) {
+            return;
+        }
+
+        $instance = $this->related->newInstance();
+        $instance->exists = false;
+        $instance->id = 0;
+
+        if (is_callable($this->defaultCallback)) {
+            call_user_func($this->defaultCallback, $instance);
+        } elseif (is_array($this->defaultCallback)) {
+            $instance->forceFill($this->defaultCallback);
+        }
+
+        return $instance;
+    }
 }

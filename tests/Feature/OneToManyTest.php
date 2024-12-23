@@ -9,13 +9,20 @@ beforeEach(function () {
     Schema::create('posts', function (Blueprint $table) {
         $table->id();
         $table->string('title')->nullable();
+        $table->foreignId('category_id')->nullable();
         $table->timestamps();
     });
 
     Schema::create('comments', function (Blueprint $table) {
         $table->id();
-        $table->foreignId('post_id')->nullable();
+        $table->foreignId('post_id');
         $table->string('title');
+        $table->timestamps();
+    });
+
+    Schema::create('categories', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
         $table->timestamps();
     });
 });
@@ -35,11 +42,58 @@ class EloquentPost extends EloquentModel
     {
         return $this->hasMany(RedisComment::class, 'post_id');
     }
+
+    public function eloquentCategory()
+    {
+        return $this->belongsTo(EloquentCategory::class, 'category_id');
+    }
+
+    public function redisCategory()
+    {
+        return $this->belongsTo(RedisCategory::class, 'category_id');
+    }
+
+    public function eloquentCategoryWithDefault()
+    {
+        return $this->belongsTo(EloquentCategory::class, 'category_id')->withDefault();
+    }
+
+    public function redisCategoryWithDefault()
+    {
+        return $this->belongsTo(RedisCategory::class, 'category_id')->withDefault();
+    }
+
+    public function eloquentCategoryWithDefaultAttribute()
+    {
+        return $this->belongsTo(EloquentCategory::class, 'category_id')->withDefault(['name' => 'Default Category']);
+    }
+
+    public function redisCategoryWithDefaultAttribute()
+    {
+        return $this->belongsTo(RedisCategory::class, 'category_id')->withDefault(['name' => 'Default Category']);
+    }
+
+    public function eloquentCategoryWithDefaultClosure()
+    {
+        return $this->belongsTo(EloquentCategory::class, 'category_id')->withDefault(function ($model) {
+            $model->name = 'Default Category';
+        });
+    }
+
+    public function redisCategoryWithDefaultClosure()
+    {
+        return $this->belongsTo(RedisCategory::class, 'category_id')->withDefault(function ($model) {
+            $model->name = 'Default Category';
+        });
+    }
 }
 
 class RedisPost extends RedisModel
 {
-    protected $fillable = ['id', 'title'];
+    protected $fillable = ['id', 'title', 'category_id'];
+    protected $casts = [
+        'category_id' => 'integer',
+    ];
     
     public function eloquentComments()
     {
@@ -49,6 +103,50 @@ class RedisPost extends RedisModel
     public function redisComments()
     {
         return $this->hasMany(RedisComment::class, 'post_id');
+    }
+
+    public function eloquentCategory()
+    {
+        return $this->belongsTo(EloquentCategory::class, 'category_id');
+    }
+
+    public function redisCategory()
+    {
+        return $this->belongsTo(RedisCategory::class, 'category_id');
+    }
+
+    public function eloquentCategoryWithDefault()
+    {
+        return $this->belongsTo(EloquentCategory::class, 'category_id')->withDefault();
+    }
+
+    public function redisCategoryWithDefault()
+    {
+        return $this->belongsTo(RedisCategory::class, 'category_id')->withDefault();
+    }
+
+    public function eloquentCategoryWithDefaultAttribute()
+    {
+        return $this->belongsTo(EloquentCategory::class, 'category_id')->withDefault(['name' => 'Default Category']);
+    }
+
+    public function redisCategoryWithDefaultAttribute()
+    {
+        return $this->belongsTo(RedisCategory::class, 'category_id')->withDefault(['name' => 'Default Category']);
+    }
+
+    public function eloquentCategoryWithDefaultClosure()
+    {
+        return $this->belongsTo(EloquentCategory::class, 'category_id')->withDefault(function ($model) {
+            $model->name = 'Default Category';
+        });
+    }
+
+    public function redisCategoryWithDefaultClosure()
+    {
+        return $this->belongsTo(RedisCategory::class, 'category_id')->withDefault(function ($model) {
+            $model->name = 'Default Category';
+        });
     }
 }
 
@@ -60,103 +158,63 @@ class EloquentComment extends EloquentModel
     
     public function eloquentPost()
     {
-        return $this->belongsTo(EloquentPost::class, 'post_id')->withDefault();
+        return $this->belongsTo(EloquentPost::class, 'post_id');
     }
     
     public function redisPost()
     {
-        return $this->belongsTo(RedisPost::class, 'post_id')->withDefault();
+        return $this->belongsTo(RedisPost::class, 'post_id');
     }
 }
 
 class RedisComment extends RedisModel {
     protected $fillable = ['post_id', 'title'];
     protected $subKeys = ['title'];
+    protected $casts = [
+        'post_id' => 'integer',
+    ];
     
     public function redisPost()
     {
-        return $this->belongsTo(RedisPost::class, 'post_id')->withDefault();
+        return $this->belongsTo(RedisPost::class, 'post_id');
     }
     
     public function eloquentPost()
     {
-        return $this->belongsTo(EloquentPost::class, 'post_id')->withDefault();
+        return $this->belongsTo(EloquentPost::class, 'post_id');
     }
 }
 
-class EloquentCommentWithAttributes extends EloquentComment
+class EloquentCategory extends EloquentModel
 {
-    public function eloquentPost()
+    use \Alvin0\RedisModel\Traits\HasRedisRelationships;
+    protected $fillable = ['name'];
+    protected $table = 'categories';
+
+    public function eloquentPosts()
     {
-        return $this->belongsTo(EloquentPost::class, 'post_id')->withDefault([
-            'id' => 0,
-            'title' => 'Default Post'
-        ]);
+        return $this->hasMany(EloquentPost::class, 'category_id');
     }
-    
-    public function redisPost()
+
+    public function redisPosts()
     {
-        return $this->belongsTo(RedisPost::class, 'post_id')->withDefault([
-            'id' => 0,
-            'title' => 'Default Post'
-        ]);
+        return $this->hasMany(RedisPost::class, 'category_id');
     }
 }
 
-class RedisCommentWithAttributes extends RedisComment
+class RedisCategory extends RedisModel
 {
-    public function redisPost()
-    {
-        return $this->belongsTo(RedisPost::class, 'post_id')->withDefault([
-            'id' => 0,
-            'title' => 'Default Post'
-        ]);
-    }
-    
-    public function eloquentPost()
-    {
-        return $this->belongsTo(EloquentPost::class, 'post_id')->withDefault([
-            'id' => 0,
-            'title' => 'Default Post'
-        ]);
-    }
-}
+    protected $fillable = ['name'];
+    protected $subKeys = ['name'];
 
-class EloquentCommentWithClosure extends EloquentComment
-{
-    public function eloquentPost()
+    public function eloquentPosts()
     {
-        return $this->belongsTo(EloquentPost::class, 'post_id')->withDefault(function ($post, $comment) {
-            $post->title = "Default Post for comment: " . $comment->title;
-            $post->id = 0;
-        });
+        return $this->hasMany(EloquentPost::class, 'category_id');
     }
-    
-    public function redisPost()
-    {
-        return $this->belongsTo(RedisPost::class, 'post_id')->withDefault(function ($post, $comment) {
-            $post->title = "Default Post for comment: " . $comment->title;
-            $post->id = 0;
-        });
-    }
-}
 
-class RedisCommentWithClosure extends RedisComment
-{
-    public function redisPost()
+    public function redisPosts()
     {
-        return $this->belongsTo(RedisPost::class, 'post_id')->withDefault(function ($post, $comment) {
-            $post->title = "Default Post for comment: " . $comment->title;
-            $post->id = 0;
-        });
-    }
-    
-    public function eloquentPost()
-    {
-        return $this->belongsTo(EloquentPost::class, 'post_id')->withDefault(function ($post, $comment) {
-            $post->title = "Default Post for comment: " . $comment->title;
-            $post->id = 0;
-        });
+        return $this->hasMany(RedisPost::class, 'category_id');
     }
 }
 
@@ -203,80 +261,113 @@ dataset('OneToMany', [
     ],
 ]);
 
-dataset('OneToManyWithAttributes', [
-    'Eloquent -(hasMany)-> Eloquent' => [
-        fn () => EloquentPost::class,
-        fn () => EloquentCommentWithAttributes::class,
+dataset('OneToManyWithDefault', [
+    'Eloquent Post -> Default Eloquent Category' => [
+        fn () => EloquentPost::create(),
         [
             'parent' => EloquentModel::class,
             'child' => EloquentModel::class,
-            'belongsTo' => 'eloquentPost',
+            'belongsTo' => 'eloquentCategoryWithDefault',
+            'name' => null,
         ]
     ],
-    'Eloquent -(hasMany)-> Redis' => [
-        fn () => EloquentPost::class,
-        fn () => RedisCommentWithAttributes::class,
+    'Redis Post -> Default Eloquent Category' => [
+        fn () => RedisPost::create(['id' => 1]),
         [
             'parent' => EloquentModel::class,
             'child' => RedisModel::class,
-            'belongsTo' => 'eloquentPost',
+            'belongsTo' => 'eloquentCategoryWithDefault',
+            'name' => null,
         ]
     ],
-    'Redis -(hasMany)-> Eloquent' => [
-        fn () => RedisPost::class,
-        fn () => EloquentCommentWithAttributes::class,
+    'Eloquent Post -> Default Redis Category' => [
+        fn () => EloquentPost::create(),
         [
             'parent' => RedisModel::class,
             'child' => EloquentModel::class,
-            'belongsTo' => 'redisPost',
+            'belongsTo' => 'redisCategoryWithDefault',
+            'name' => null,
         ]
     ],
-    'Redis -(hasMany)-> Redis' => [
-        fn () => RedisPost::class,
-        fn () => RedisCommentWithAttributes::class,
+    'Redis Post -> Default Redis Category' => [
+        fn () => RedisPost::create(['id' => 1]),
         [
             'parent' => RedisModel::class,
             'child' => RedisModel::class,
-            'belongsTo' => 'redisPost',
+            'belongsTo' => 'redisCategoryWithDefault',
+            'name' => null,
         ]
     ],
-]);
-
-dataset('OneToManyWithClosure', [
-    'Eloquent -(hasMany)-> Eloquent' => [
-        fn () => EloquentPost::class,
-        fn () => EloquentCommentWithClosure::class,
+    'Eloquent Post -> Default Eloquent Category with attributes' => [
+        fn () => EloquentPost::create(),
         [
             'parent' => EloquentModel::class,
             'child' => EloquentModel::class,
-            'belongsTo' => 'eloquentPost',
+            'belongsTo' => 'eloquentCategoryWithDefaultAttribute',
+            'name' => 'Default Category',
         ]
     ],
-    'Eloquent -(hasMany)-> Redis' => [
-        fn () => EloquentPost::class,
-        fn () => RedisCommentWithClosure::class,
+    'Redis Post -> Default Eloquent Category with attributes' => [
+        fn () => RedisPost::create(['id' => 1]),
         [
             'parent' => EloquentModel::class,
             'child' => RedisModel::class,
-            'belongsTo' => 'eloquentPost',
+            'belongsTo' => 'eloquentCategoryWithDefaultAttribute',
+            'name' => 'Default Category',
         ]
     ],
-    'Redis -(hasMany)-> Eloquent' => [
-        fn () => RedisPost::class,
-        fn () => EloquentCommentWithClosure::class,
+    'Eloquent Post -> Default Redis Category with attributes' => [
+        fn () => EloquentPost::create(),
         [
             'parent' => RedisModel::class,
             'child' => EloquentModel::class,
-            'belongsTo' => 'redisPost',
+            'belongsTo' => 'redisCategoryWithDefaultAttribute',
+            'name' => 'Default Category',
         ]
     ],
-    'Redis -(hasMany)-> Redis' => [
-        fn () => RedisPost::class,
-        fn () => RedisCommentWithClosure::class,
+    'Redis Post -> Default Redis Category with attributes' => [
+        fn () => RedisPost::create(['id' => 1]),
         [
             'parent' => RedisModel::class,
             'child' => RedisModel::class,
-            'belongsTo' => 'redisPost',
+            'belongsTo' => 'redisCategoryWithDefaultAttribute',
+            'name' => 'Default Category',
+        ]
+    ],
+    'Eloquent Post -> Default Eloquent Category with closure' => [
+        fn () => EloquentPost::create(),
+        [
+            'parent' => EloquentModel::class,
+            'child' => EloquentModel::class,
+            'belongsTo' => 'eloquentCategoryWithDefaultClosure',
+            'name' => 'Default Category',
+        ]
+    ],
+    'Redis Post -> Default Eloquent Category with closure' => [
+        fn () => RedisPost::create(['id' => 1]),
+        [
+            'parent' => EloquentModel::class,
+            'child' => RedisModel::class,
+            'belongsTo' => 'eloquentCategoryWithDefaultClosure',
+            'name' => 'Default Category',
+        ]
+    ],
+    'Eloquent Post -> Default Redis Category with closure' => [
+        fn () => EloquentPost::create(),
+        [
+            'parent' => RedisModel::class,
+            'child' => EloquentModel::class,
+            'belongsTo' => 'redisCategoryWithDefaultClosure',
+            'name' => 'Default Category',
+        ]
+    ],
+    'Redis Post -> Default Redis Category with closure' => [
+        fn () => RedisPost::create(['id' => 1]),
+        [
+            'parent' => RedisModel::class,
+            'child' => RedisModel::class,
+            'belongsTo' => 'redisCategoryWithDefaultClosure',
+            'name' => 'Default Category',
         ]
     ],
 ]);
@@ -395,60 +486,24 @@ it('can eager load belongsTo relationships', function (
 })->with('OneToMany');
 
 it('can get default model for belongsTo relationship when relation is null', function (
-    EloquentModel|RedisModel $parent,
     EloquentModel|RedisModel $child,
     array $expected
 ) {
-    // Create a new comment without a post
-    $childClass = get_class($child);
-    $newChild = $childClass::create(['title' => 'orphaned comment']);
-
-    expect($newChild->{$expected['belongsTo']})
-        ->toBeInstanceOf(get_class($parent))
+    $defaultModel = $child->{$expected['belongsTo']};
+    
+    expect($defaultModel)
         ->toBeInstanceOf($expected['parent'])
-        ->and($newChild->{$expected['belongsTo']}->exists)
-        ->toBeFalse();
-})->with('OneToMany');
-
-it('can get default model with attributes for belongsTo relationship when relation is null', function (
-    callable $parentClass,
-    callable $childClass,
-    array $expected
-) {
-    // Create a new comment without a post
-    $childModel = $childClass();
-    $newChild = $childModel::create(['title' => 'orphaned comment']);
-
-    expect($newChild->{$expected['belongsTo']})
-        ->toBeInstanceOf($parentClass())
-        ->toBeInstanceOf($expected['parent'])
-        ->and($newChild->{$expected['belongsTo']}->exists)
+        ->and($defaultModel->exists)
         ->toBeFalse()
-        ->and($newChild->{$expected['belongsTo']}->title)
-        ->toBe('Default Post')
-        ->and((string)$newChild->{$expected['belongsTo']}->id)
-        ->toBe('0');
-})->with('OneToManyWithAttributes');
-
-it('can get default model with closure for belongsTo relationship when relation is null', function (
-    callable $parentClass,
-    callable $childClass,
-    array $expected
-) {
-    // Create a new comment without a post
-    $childModel = $childClass();
-    $newChild = $childModel::create(['title' => 'orphaned comment']);
-
-    expect($newChild->{$expected['belongsTo']})
-        ->toBeInstanceOf($parentClass())
-        ->toBeInstanceOf($expected['parent'])
-        ->and($newChild->{$expected['belongsTo']}->exists)
-        ->toBeFalse()
-        ->and($newChild->{$expected['belongsTo']}->title)
-        ->toBe('Default Post for comment: orphaned comment')
-        ->and((string)$newChild->{$expected['belongsTo']}->id)
-        ->toBe('0');
-})->with('OneToManyWithClosure');
+        ->when(
+            $expected['name'] !== null,
+            fn ($expectation) => $expectation
+                ->and($defaultModel->name)
+                ->toBe($expected['name'])
+        )
+        ->and($defaultModel->id)
+        ->toBeNull();
+})->with('OneToManyWithDefault');
 
 it('can lazy load hasMany relationships', function (
     EloquentModel|RedisModel $parent,

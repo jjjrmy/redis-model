@@ -3,9 +3,12 @@ namespace Alvin0\RedisModel;
 
 use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Support\Facades\DB;
+use Alvin0\RedisModel\Traits\QueriesRedisRelationships;
 
 class Builder
 {
+    use QueriesRedisRelationships;
+
     /**
      * @var PhpRedisConnection
      */
