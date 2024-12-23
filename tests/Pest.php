@@ -47,6 +47,10 @@ expect()->extend('toBeOne', function () {
     return $this->toBe(1);
 });
 
+expect()->extend('toBeCollection', function () {
+    return $this->toBeInstanceOf(\Illuminate\Support\Collection::class);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Functions
