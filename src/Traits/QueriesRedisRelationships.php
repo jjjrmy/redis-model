@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use BadMethodCallException;
 use Alvin0\RedisModel\Model as RedisModel;
+use Alvin0\RedisModel\Collection as RedisCollection;
 
 trait QueriesRedisRelationships
 {
@@ -25,7 +26,7 @@ trait QueriesRedisRelationships
      */
     public function whereBelongsTo($related, $relationshipName = null, $boolean = 'and')
     {
-        if (!$related instanceof EloquentCollection) {
+        if (! $related instanceof EloquentCollection && ! $related instanceof RedisCollection) {
             $relatedCollection = $related->newCollection([$related]);
         } else {
             $relatedCollection = $related;
@@ -46,39 +47,16 @@ trait QueriesRedisRelationships
             throw RelationNotFoundException::make($this->model, $relationshipName);
         }
 
-        if (!$relationship instanceof BelongsTo) {
+        if (! $relationship instanceof BelongsTo) {
             throw RelationNotFoundException::make($this->model, $relationshipName, BelongsTo::class);
         }
 
-        // For Redis models, we need to use the where method with the foreign key
-        // If we have a collection, we need to handle it differently
-        if ($relatedCollection->count() > 1) {
-            $ownerKeys = $relatedCollection->pluck($relationship->getOwnerKeyName())->all();
-            $foreignKey = $relationship->getForeignKeyName();
-            
-            // For Redis models, we need to handle each key individually
-            $this->setConditionSession([]);
-            foreach ($ownerKeys as $ownerKey) {
-                $this->where($foreignKey, $ownerKey);
-            }
-            return $this;
-        }
-
-        // For Redis models, we need to handle the subKeys
-        if ($this->model instanceof RedisModel) {
-            $foreignKey = $relationship->getForeignKeyName();
-            $ownerKey = $relatedCollection->pluck($relationship->getOwnerKeyName())->first();
-            
-            // Reset any existing conditions
-            $this->setConditionSession([]);
-            
-            // Add the foreign key condition
-            return $this->where($foreignKey, $ownerKey);
-        }
-
-        return $this->where(
-            $relationship->getForeignKeyName(),
-            $relatedCollection->pluck($relationship->getOwnerKeyName())->first()
+        $this->whereIn(
+            $relationship->getQualifiedForeignKeyName(),
+            $relatedCollection->pluck($relationship->getOwnerKeyName())->toArray(),
+            $boolean,
         );
+
+        return $this;
     }
 } 

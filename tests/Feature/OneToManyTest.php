@@ -9,13 +9,13 @@ beforeEach(function () {
     Schema::create('posts', function (Blueprint $table) {
         $table->id();
         $table->string('title')->nullable();
-        $table->foreignId('category_id')->nullable();
+        $table->string('category_id')->nullable();
         $table->timestamps();
     });
 
     Schema::create('comments', function (Blueprint $table) {
         $table->id();
-        $table->foreignId('post_id');
+        $table->string('post_id');
         $table->string('title');
         $table->timestamps();
     });
@@ -91,9 +91,6 @@ class EloquentPost extends EloquentModel
 class RedisPost extends RedisModel
 {
     protected $fillable = ['id', 'title', 'category_id'];
-    protected $casts = [
-        'category_id' => 'integer',
-    ];
     
     public function eloquentComments()
     {
@@ -169,10 +166,7 @@ class EloquentComment extends EloquentModel
 
 class RedisComment extends RedisModel {
     protected $fillable = ['post_id', 'title'];
-    protected $subKeys = ['title'];
-    protected $casts = [
-        'post_id' => 'integer',
-    ];
+    protected $subKeys = ['post_id'];
     
     public function redisPost()
     {
@@ -220,8 +214,8 @@ class RedisCategory extends RedisModel
 
 dataset('OneToMany', [
     'Eloquent -(hasMany)-> Eloquent' => [
-        fn () => EloquentPost::create(),
-        fn () => EloquentComment::create(['post_id' => 1, 'title' => 'foo']),
+        fn () => EloquentPost::create(['id' => '1']),
+        fn () => EloquentComment::create(['post_id' => '1', 'title' => 'foo']),
         [
             'parent' => EloquentModel::class,
             'child' => EloquentModel::class,
@@ -230,8 +224,8 @@ dataset('OneToMany', [
         ]
     ],
     'Eloquent -(hasMany)-> Redis' => [
-        fn () => EloquentPost::create(['id' => 1]),
-        fn () => RedisComment::create(['id' => 1, 'post_id' => 1, 'title' => 'foo']),
+        fn () => EloquentPost::create(['id' => '1']),
+        fn () => RedisComment::create(['id' => '1', 'post_id' => '1', 'title' => 'foo']),
         [
             'parent' => EloquentModel::class,
             'child' => RedisModel::class,
@@ -240,8 +234,8 @@ dataset('OneToMany', [
         ]
     ],
     'Redis -(hasMany)-> Eloquent' => [
-        fn () => RedisPost::create(['id' => 1]),
-        fn () => EloquentComment::create(['post_id' => 1, 'title' => 'foo']),
+        fn () => RedisPost::create(['id' => '1']),
+        fn () => EloquentComment::create(['post_id' => '1', 'title' => 'foo']),
         [
             'parent' => RedisModel::class,
             'child' => EloquentModel::class,
@@ -250,8 +244,8 @@ dataset('OneToMany', [
         ]
     ],
     'Redis -(hasMany)-> Redis' => [
-        fn () => RedisPost::create(['id' => 1]),
-        fn () => RedisComment::create(['id' => 1, 'post_id' => 1, 'title' => 'foo']),
+        fn () => RedisPost::create(['id' => '1']),
+        fn () => RedisComment::create(['id' => '1', 'post_id' => '1', 'title' => 'foo']),
         [
             'parent' => RedisModel::class,
             'child' => RedisModel::class,
@@ -658,4 +652,55 @@ it('can lazy load missing relationships', function (
         ->and($childResult->{$expected['belongsTo']})
         ->toBeInstanceOf(get_class($parent))
         ->toBeInstanceOf($expected['parent']);
+})->with('OneToMany');
+
+it('can query belongsTo relationships using whereBelongsTo with single model', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    $childClass = get_class($child);
+
+    $childClass::create(['post_id' => 123, 'title' => 'foo']);
+
+    $results = $childClass::whereBelongsTo($parent)->get();
+
+    expect($results)
+        ->toBeCollection()
+        ->toHaveCount(1)
+        ->each(fn ($item) => $item
+            ->toBeInstanceOf($expected['child'])
+            // ->post_id
+            // ->toBe($parent->id)
+        );
+})->with('OneToMany');
+
+it('can query belongsTo relationships using whereBelongsTo with collection', function (
+    EloquentModel|RedisModel $parent, // Post
+    EloquentModel|RedisModel $child, // Comment
+    array $expected
+) {
+    $parentClass = get_class($parent);
+    $childClass = get_class($child);
+
+    // Create multiple parents
+    $parent2 = $parentClass::create(['id' => '2']); // Create Post 2
+    $parent3 = $parentClass::create(['id' => '3']); // Create Post 3
+    $parents = $parentClass::whereIn('id', [$parent->id, $parent2->id, $parent3->id])->get();
+    // Eloquent();
+
+    // Create children for each parent
+    $childClass::create(['post_id' => $parent2->id, 'title' => 'bar']);
+    $childClass::create(['post_id' => $parent3->id, 'title' => 'baz']);
+    $childClass::create(['post_id' => 9, 'title' => 'baz']);
+    $childClass::create(['post_id' => 9, 'title' => 'baz']);
+
+    $results = $childClass::whereBelongsTo($parents)->get();
+
+    expect($results)
+        ->toBeCollection()
+        ->toHaveCount(3)
+        ->each(fn ($item) => $item
+            ->toBeInstanceOf($expected['child'])
+        );
 })->with('OneToMany');

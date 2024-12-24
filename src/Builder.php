@@ -47,6 +47,11 @@ class Builder
     protected $eagerLoad = [];
 
     /**
+     * @var array
+     */
+    protected $whereInConditions = [];
+
+    /**
      * Create a new query builder instance.
      *
      * @param  PhpRedisConnection  $connection
@@ -172,10 +177,22 @@ class Builder
      */
     public function where(string | array $column, string | int $value = null)
     {
-        if ($value && gettype($column) == 'string') {
+        if ($value !== null && gettype($column) === 'string') {
+            // Cast the value using the model's cast method if available
+            if (method_exists($this->model, 'castAttributeBeforeSave')) {
+                $value = $this->model->castAttributeBeforeSave($column, $value);
+            }
             $this->setConditionSession(array_merge($this->getConditionSession(), [$column => $value]));
-        } else if (gettype($column) == 'array') {
-            $this->setConditionSession(array_merge($this->getConditionSession(), $column));
+        } else if (gettype($column) === 'array') {
+            $conditions = [];
+            foreach ($column as $key => $val) {
+                // Cast each value using the model's cast method if available
+                if (method_exists($this->model, 'castAttributeBeforeSave')) {
+                    $val = $this->model->castAttributeBeforeSave($key, $val);
+                }
+                $conditions[$key] = $val;
+            }
+            $this->setConditionSession(array_merge($this->getConditionSession(), $conditions));
         }
 
         $pattern = $this->compileHashByFields($this->getConditionSession());
@@ -248,7 +265,33 @@ class Builder
      */
     public function get($columns = ['*'])
     {
-        $models = $this->getModels($columns);
+        $models = [];
+
+        if (!empty($this->whereInConditions)) {
+            // Handle whereIn conditions
+            foreach ($this->whereInConditions as $condition) {
+                foreach ($condition['values'] as $value) {
+                    // Create a new query for each value
+                    $query = clone $this;
+                    // Reset the query state
+                    $query->whereInConditions = [];
+                    $query->conditionSession = [];
+                    // Add the where condition
+                    $query->where($condition['column'], $value);
+                    
+                    // Get the results for this value
+                    $results = $query->getModels($columns);
+                    if (!empty($results)) {
+                        foreach ($results as $result) {
+                            $models[] = $result;
+                        }
+                    }
+                }
+            }
+        } else {
+            // Normal query without whereIn
+            $models = $this->getModels($columns);
+        }
 
         if (count($models) > 0) {
             $models = $this->eagerLoadRelations($models);
@@ -549,5 +592,30 @@ class Builder
         }
 
         return $this->create($values);
+    }
+
+    /**
+     * @param string $column
+     * @param array $values
+     * @param string $boolean
+     *
+     * @return $this
+     */
+    public function whereIn($column, array $values, $boolean = 'and')
+    {
+        // Store the whereIn conditions for later execution
+        $this->whereInConditions[] = [
+            'column' => $column,
+            'values' => array_map(function ($value) use ($column) {
+                // Cast the value using the model's cast method if available
+                if (method_exists($this->model, 'castAttributeBeforeSave')) {
+                    return $this->model->castAttributeBeforeSave($column, $value);
+                }
+                return $value;
+            }, $values),
+            'boolean' => $boolean,
+        ];
+
+        return $this;
     }
 }

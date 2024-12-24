@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Concerns\HasTimestamps;
 use Illuminate\Database\Eloquent\Concerns\HasRelationships;
 use Illuminate\Database\Eloquent\Concerns\HidesAttributes;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
+use Alvin0\RedisModel\Collection;
 use Illuminate\Support\Facades\Redis as RedisFacade;
 use Illuminate\Support\Str;
 use Illuminate\Support\Traits\ForwardsCalls;

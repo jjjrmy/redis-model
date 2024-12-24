@@ -196,4 +196,15 @@ trait HasRedisRelationships
 
         return $instance;
     }
+
+    /**
+     * Create a new Eloquent query builder for the model.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @return \Alvin0\RedisModel\EloquentBuilder
+     */
+    public function newEloquentBuilder($query)
+    {
+        return new \Alvin0\RedisModel\EloquentBuilder($query);
+    }
 }

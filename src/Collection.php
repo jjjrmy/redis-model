@@ -301,7 +301,7 @@ class Collection extends BaseCollection
      */
     public function pluck($value, $key = null)
     {
-        return $this->toBase()->pluck($value, $key);
+        return new static(Arr::pluck($this->toArray(), $value, $key));
     }
 
     /**
@@ -326,5 +326,10 @@ class Collection extends BaseCollection
     protected function duplicateComparator($strict)
     {
         return fn($a, $b) => $a->is($b);
+    }
+
+    public function newCollection(array $models = [])
+    {
+        return new static($models);
     }
 }
