@@ -317,3 +317,24 @@ it('can lazy load missing relationships', function (
         ->toBeInstanceOf(get_class($parent))
         ->toBeInstanceOf($expected['parent']);
 })->with('OneToOne');
+
+it('can create related models through relationship', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    $child->delete();
+
+    $newChild = $parent->{$expected['hasOne']}()->create([
+        'customer_id' => $parent->id
+    ]);
+    
+    expect($newChild)
+        ->toBeInstanceOf($expected['child'])
+        ->toBeInstanceOf(get_class($child))
+        ->and($newChild->customer_id)
+        ->toBe($parent->id)
+        ->and($parent->{$expected['hasOne']})
+        ->toBeInstanceOf(get_class($child))
+        ->toBeInstanceOf($expected['child']);
+})->with('OneToOne');

@@ -676,8 +676,8 @@ it('can query belongsTo relationships using whereBelongsTo with single model', f
 })->with('OneToMany');
 
 it('can query belongsTo relationships using whereBelongsTo with collection', function (
-    EloquentModel|RedisModel $parent, // Post
-    EloquentModel|RedisModel $child, // Comment
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
     array $expected
 ) {
     $parentClass = get_class($parent);
@@ -702,5 +702,34 @@ it('can query belongsTo relationships using whereBelongsTo with collection', fun
         ->toHaveCount(3)
         ->each(fn ($item) => $item
             ->toBeInstanceOf($expected['child'])
+        );
+})->with('OneToMany');
+
+it('can create related models through relationship', function (
+    EloquentModel|RedisModel $parent,
+    EloquentModel|RedisModel $child,
+    array $expected
+) {
+    $child->delete();
+
+    $newChild = $parent->{$expected['hasMany']}()->create([
+        'post_id' => $parent->id,
+        'title' => 'Created through relationship'
+    ]);
+    
+    expect($newChild)
+        ->toBeInstanceOf($expected['child'])
+        ->toBeInstanceOf(get_class($child))
+        ->and($newChild->post_id)
+        ->toBe($parent->id)
+        ->and($newChild->title)
+        ->toBe('Created through relationship')
+        ->and($parent->{$expected['hasMany']})
+        ->toBeCollection()
+        ->toHaveCount(1)
+        ->sequence(
+            fn ($item) => $item
+                ->toBeInstanceOf($expected['child'])
+                ->toBeInstanceOf(get_class($child))
         );
 })->with('OneToMany');
