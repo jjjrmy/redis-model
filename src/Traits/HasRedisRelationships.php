@@ -2,42 +2,45 @@
 
 namespace Alvin0\RedisModel\Traits;
 
-use Alvin0\RedisModel\Builder as RedisBuilder;
-use Alvin0\RedisModel\Collection as RedisCollection;
-use Alvin0\RedisModel\Model as RedisModel;
-use Alvin0\RedisModel\Relations\BelongsTo as RedisBelongsTo;
-use Alvin0\RedisModel\Relations\BelongsToMany as RedisBelongsToMany;
-use Alvin0\RedisModel\Relations\HasMany as RedisHasMany;
-use Alvin0\RedisModel\Relations\HasManyThrough as RedisHasManyThrough;
-use Alvin0\RedisModel\Relations\HasOne as RedisHasOne;
-use Alvin0\RedisModel\Relations\HasOneThrough as RedisHasOneThrough;
-// use Alvin0\RedisModel\Relations\MorphMany as RedisMorphMany;
-// use Alvin0\RedisModel\Relations\MorphOne as RedisMorphOne;
-// use Alvin0\RedisModel\Relations\MorphTo as RedisMorphTo;
-// use Alvin0\RedisModel\Relations\MorphToMany as RedisMorphToMany;
-// use Alvin0\RedisModel\Relations\Pivot as RedisPivot;
-use Alvin0\RedisModel\Relations\Relation as RedisRelation;
-use Closure;
-use Illuminate\Database\ClassMorphViolationException;
-use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Database\Eloquent\Model as EloquentModel;
-use Illuminate\Database\Eloquent\PendingHasThroughRelationship;
-use Illuminate\Database\Eloquent\Relations\BelongsTo as EloquentBelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany as EloquentBelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany as EloquentHasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough as EloquentHasManyThrough;
-use Illuminate\Database\Eloquent\Relations\HasOne as EloquentHasOne;
-use Illuminate\Database\Eloquent\Relations\HasOneThrough as EloquentHasOneThrough;
-use Illuminate\Database\Eloquent\Relations\MorphMany as EloquentMorphMany;
-use Illuminate\Database\Eloquent\Relations\MorphOne as EloquentMorphOne;
-use Illuminate\Database\Eloquent\Relations\MorphTo as EloquentMorphTo;
-use Illuminate\Database\Eloquent\Relations\MorphToMany as EloquentMorphToMany;
-use Illuminate\Database\Eloquent\Relations\Pivot as EloquentPivot;
-use Illuminate\Database\Eloquent\Relations\Relation as EloquentRelation;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 use LogicException;
+use Alvin0\RedisModel\{
+    Builder as RedisBuilder,
+    Collection as RedisCollection,
+    Model as RedisModel
+};
+use Alvin0\RedisModel\Relations\{
+    BelongsTo as RedisBelongsTo,
+    BelongsToMany as RedisBelongsToMany,
+    HasMany as RedisHasMany,
+    HasManyThrough as RedisHasManyThrough,
+    HasOne as RedisHasOne,
+    HasOneThrough as RedisHasOneThrough,
+    // MorphMany as RedisMorphMany,
+    // MorphOne as RedisMorphOne,
+    // MorphTo as RedisMorphTo,
+    // MorphToMany as RedisMorphToMany,
+    // Pivot as RedisPivot,
+    Relation as RedisRelation
+};
+use Illuminate\Database\Eloquent\{
+    Builder as EloquentBuilder,
+    Collection as EloquentCollection,
+    Model as EloquentModel
+};
+use Illuminate\Database\Eloquent\Relations\{
+    BelongsTo as EloquentBelongsTo,
+    BelongsToMany as EloquentBelongsToMany,
+    HasMany as EloquentHasMany,
+    HasManyThrough as EloquentHasManyThrough,
+    HasOne as EloquentHasOne,
+    HasOneThrough as EloquentHasOneThrough,
+    MorphMany as EloquentMorphMany,
+    MorphOne as EloquentMorphOne,
+    MorphTo as EloquentMorphTo,
+    MorphToMany as EloquentMorphToMany,
+    Pivot as EloquentPivot,
+    Relation as EloquentRelation
+};
 
 trait HasRedisRelationships
 {
@@ -103,6 +106,56 @@ trait HasRedisRelationships
         }
 
         return new EloquentBelongsTo($query, $child, $foreignKey, $ownerKey, $relation);
+    }
+
+    /**
+     * Instantiate a new HasOneThrough relationship.
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model|\Alvin0\RedisModel\Model
+     * @template TIntermediateModel of \Illuminate\Database\Eloquent\Model|\Alvin0\RedisModel\Model
+     * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model|\Alvin0\RedisModel\Model
+     *
+     * @param  EloquentBuilder|RedisBuilder<TRelatedModel>  $query
+     * @param  TDeclaringModel  $farParent
+     * @param  TIntermediateModel  $throughParent
+     * @param  string  $firstKey
+     * @param  string  $secondKey
+     * @param  string  $localKey
+     * @param  string  $secondLocalKey
+     * @return EloquentHasOneThrough|RedisHasOneThrough<TRelatedModel, TIntermediateModel, TDeclaringModel>
+     */
+    protected function newHasOneThrough(EloquentBuilder | RedisBuilder $query, EloquentModel | RedisModel $farParent, EloquentModel | RedisModel $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey): EloquentHasOneThrough | RedisHasOneThrough
+    {
+        if ($query instanceof RedisBuilder || $farParent instanceof RedisModel || $throughParent instanceof RedisModel) {
+            return new RedisHasOneThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
+        }
+
+        return new EloquentHasOneThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
+    }
+
+    /**
+     * Instantiate a new HasManyThrough relationship.
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     * @template TIntermediateModel of \Illuminate\Database\Eloquent\Model
+     * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<TRelatedModel>  $query
+     * @param  TDeclaringModel  $farParent
+     * @param  TIntermediateModel  $throughParent
+     * @param  string  $firstKey
+     * @param  string  $secondKey
+     * @param  string  $localKey
+     * @param  string  $secondLocalKey
+     * @return \Illuminate\Database\Eloquent\Relations\HasManyThrough<TRelatedModel, TIntermediateModel, TDeclaringModel>
+     */
+    protected function newHasManyThrough(EloquentBuilder | RedisBuilder $query, EloquentModel | RedisModel $farParent, EloquentModel | RedisModel $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey)
+    {
+        // if ($query instanceof RedisBuilder || $farParent instanceof RedisModel) {
+            // return new RedisHasManyThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
+        // }
+
+        return new EloquentHasManyThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
     }
 
     /**

@@ -2,8 +2,9 @@
 
 namespace Alvin0\RedisModel\Relations;
 
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Alvin0\RedisModel\Model as RedisModel;
 use Alvin0\RedisModel\Collection as RedisCollection;
 
@@ -52,6 +53,13 @@ class HasOneThrough extends Relation
     protected $secondLocalKey;
 
     /**
+     * The eager keys on the relationship.
+     *
+     * @var array
+     */
+    protected $eagerKeys = [];
+
+    /**
      * Create a new has one through relationship instance.
      *
      * @param  mixed  $query
@@ -84,14 +92,23 @@ class HasOneThrough extends Relation
      */
     public function addConstraints()
     {
-        if (static::$constraints) {
-            if ($this->throughParent instanceof RedisModel) {
-                $this->throughParent::where($this->firstKey, $this->farParent->{$this->localKey})
-                    ->each(function ($through) {
-                        $this->query->orWhere($this->secondKey, $through->{$this->secondLocalKey});
-                    });
+        if (!static::$constraints) {
+            return;
+        }
+
+        // Get the intermediate model first
+        $through = null;
+        if ($this->throughParent instanceof RedisModel) {
+            $through = $this->throughParent::where($this->firstKey, (string)$this->farParent->{$this->localKey})->first();
+        } else {
+            $through = $this->throughParent::where($this->firstKey, $this->farParent->{$this->localKey})->first();
+        }
+
+        if ($through) {
+            if ($this->related instanceof RedisModel) {
+                $this->query->where($this->secondKey, (string)$through->{$this->secondLocalKey});
             } else {
-                $this->query->where($this->secondKey, $this->throughParent->{$this->secondLocalKey});
+                $this->query->where($this->secondKey, $through->{$this->secondLocalKey});
             }
         }
     }
@@ -108,8 +125,35 @@ class HasOneThrough extends Relation
             return $model->{$this->localKey};
         })->filter()->values()->all();
 
-        if (!($this->farParent instanceof EloquentModel && $this->related instanceof RedisModel)) {
-            $this->query->whereIn($this->firstKey, $keys);
+        // Store the parent keys for later use
+        $this->eagerKeys = $keys;
+
+        if ($this->throughParent instanceof RedisModel) {
+            // For Redis through model, we need to handle each model separately
+            $throughModels = collect();
+            foreach ($keys as $key) {
+                if ($through = $this->throughParent::where($this->firstKey, (string)$key)->first()) {
+                    $throughModels->push($through);
+                }
+            }
+            
+            // Store the through models' IDs for later use
+            $throughKeys = $throughModels->pluck($this->secondLocalKey)->filter()->values()->all();
+            
+            if (!($this->related instanceof RedisModel)) {
+                $this->query->whereIn($this->secondKey, $throughKeys);
+            }
+        } else {
+            // For Eloquent through model
+            $throughModels = $this->throughParent::whereIn($this->firstKey, $keys)->get();
+            $throughKeys = $throughModels->pluck($this->secondLocalKey)->filter()->values()->all();
+            
+            if ($this->related instanceof RedisModel) {
+                // For Redis related model, we need to handle each key separately
+                $this->eagerKeys = $throughKeys;
+            } else {
+                $this->query->whereIn($this->secondKey, $throughKeys);
+            }
         }
     }
 
@@ -133,40 +177,57 @@ class HasOneThrough extends Relation
      * Match the eagerly loaded results to their parents.
      *
      * @param  array  $models
-     * @param  \Illuminate\Database\Eloquent\Collection  $results
+     * @param  \Illuminate\Support\Collection  $results
      * @param  string  $relation
      * @return array
      */
     public function match(array $models, Collection $results, $relation)
     {
-        $dictionary = $this->buildDictionary($results);
+        $dictionary = [];
 
+        // Convert results to Eloquent Collection if needed
+        if (!$results instanceof EloquentCollection) {
+            $results = new EloquentCollection($results->all());
+        }
+
+        // Build a dictionary of through models first
+        $throughModels = [];
         foreach ($models as $model) {
-            $key = $model->{$this->localKey};
-            
-            if (isset($dictionary[$key])) {
-                $model->setRelation($relation, reset($dictionary[$key]));
+            if ($this->throughParent instanceof RedisModel) {
+                $through = $this->throughParent::where($this->firstKey, (string)$model->{$this->localKey})->first();
+            } else {
+                $through = $this->throughParent::where($this->firstKey, $model->{$this->localKey})->first();
+            }
+            if ($through) {
+                $throughModels[$model->{$this->localKey}] = $through;
+            }
+        }
+
+        // Build dictionary of results
+        foreach ($results as $result) {
+            foreach ($throughModels as $parentKey => $through) {
+                if ($this->related instanceof RedisModel) {
+                    if ((string)$result->{$this->secondKey} === (string)$through->{$this->secondLocalKey}) {
+                        $dictionary[$parentKey] = $result;
+                    }
+                } else {
+                    if ($result->{$this->secondKey} == $through->{$this->secondLocalKey}) {
+                        $dictionary[$parentKey] = $result;
+                    }
+                }
+            }
+        }
+
+        // Match results to models
+        foreach ($models as $model) {
+            if (isset($dictionary[$model->{$this->localKey}])) {
+                $model->setRelation($relation, $dictionary[$model->{$this->localKey}]);
+            } else {
+                $model->setRelation($relation, null);
             }
         }
 
         return $models;
-    }
-
-    /**
-     * Build model dictionary keyed by the relation's foreign key.
-     *
-     * @param  \Illuminate\Database\Eloquent\Collection  $results
-     * @return array
-     */
-    protected function buildDictionary(Collection $results)
-    {
-        $dictionary = [];
-
-        foreach ($results as $result) {
-            $dictionary[$result->{$this->firstKey}][] = $result;
-        }
-
-        return $dictionary;
     }
 
     /**
@@ -176,11 +237,24 @@ class HasOneThrough extends Relation
      */
     public function getResults()
     {
-        if ($this->farParent instanceof EloquentModel && $this->related instanceof RedisModel) {
-            return $this->related::where($this->secondKey, $this->throughParent->{$this->secondLocalKey})->first();
+        // Get the intermediate model first
+        $through = null;
+        if ($this->throughParent instanceof RedisModel) {
+            $through = $this->throughParent::where($this->firstKey, (string)$this->farParent->{$this->localKey})->first();
+        } else {
+            $through = $this->throughParent::where($this->firstKey, $this->farParent->{$this->localKey})->first();
         }
 
-        return $this->query->first();
+        if (!$through) {
+            return null;
+        }
+
+        // Get the final model
+        if ($this->related instanceof RedisModel) {
+            return $this->related::where($this->secondKey, (string)$through->{$this->secondLocalKey})->first();
+        }
+
+        return $this->query->where($this->secondKey, $through->{$this->secondLocalKey})->first();
     }
 
     /**
@@ -198,5 +272,50 @@ class HasOneThrough extends Relation
         }
 
         return new Collection(is_null($result) ? [] : [$result]);
+    }
+
+    public function getEager()
+    {
+        if ($this->throughParent instanceof RedisModel) {
+            // For Redis through model, we need to get the through models first
+            $throughModels = collect();
+            foreach ($this->eagerKeys as $key) {
+                if ($through = $this->throughParent::where($this->firstKey, (string)$key)->first()) {
+                    $throughModels->push($through);
+                }
+            }
+
+            // Now get the related models using the through models' IDs
+            $results = collect();
+            foreach ($throughModels as $through) {
+                $throughKey = $through->{$this->secondLocalKey};
+                if ($this->related instanceof RedisModel) {
+                    if ($result = $this->related::where($this->secondKey, (string)$throughKey)->first()) {
+                        $results->push($result);
+                    }
+                } else {
+                    if ($result = $this->query->where($this->secondKey, $throughKey)->first()) {
+                        $results->push($result);
+                    }
+                }
+            }
+            return $results;
+        } else {
+            // For Eloquent through model
+            $throughModels = $this->throughParent::whereIn($this->firstKey, $this->eagerKeys)->get();
+            $throughKeys = $throughModels->pluck($this->secondLocalKey)->filter()->values()->all();
+
+            if ($this->related instanceof RedisModel) {
+                $results = collect();
+                foreach ($throughKeys as $key) {
+                    if ($result = $this->related::where($this->secondKey, (string)$key)->first()) {
+                        $results->push($result);
+                    }
+                }
+                return $results;
+            } else {
+                return $this->query->whereIn($this->secondKey, $throughKeys)->get();
+            }
+        }
     }
 } 

@@ -34,7 +34,9 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     HasRedisRelationships {
         HasRedisRelationships::getRelationshipFromMethod insteadof HasAttributes;
         HasRedisRelationships::newHasOne insteadof HasRelationships;
+        HasRedisRelationships::newHasOneThrough insteadof HasRelationships;
         HasRedisRelationships::newHasMany insteadof HasRelationships;
+        HasRedisRelationships::newHasManyThrough insteadof HasRelationships;
         HasRedisRelationships::newBelongsTo insteadof HasRelationships;
         HasRedisRelationships::newBelongsToMany insteadof HasRelationships;
         HasRedisRelationships::newRelatedInstance insteadof HasRelationships;
@@ -1195,35 +1197,39 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     }
 
     /**
-     * Determine if the given attribute exists.
+     * Determine if an attribute or relation exists on the model.
      *
-     * @param  mixed  $offset
+     * @param  string  $offset
      * @return bool
      */
     public function offsetExists($offset): bool
     {
         try {
-            return null === $this->getAttribute($offset);
+            return !is_null($this->getAttribute($offset));
         } catch (MissingAttributeException) {
-            return false;
+            return isset($this->attributes[$offset]);
         }
     }
 
     /**
      * Get the value for a given offset.
      *
-     * @param  mixed  $offset
+     * @param  string  $offset
      * @return mixed
      */
     public function offsetGet($offset): mixed
     {
-        return $this->getAttribute($offset);
+        try {
+            return $this->getAttribute($offset);
+        } catch (MissingAttributeException) {
+            return $this->attributes[$offset] ?? null;
+        }
     }
 
     /**
      * Set the value for a given offset.
      *
-     * @param  mixed  $offset
+     * @param  string  $offset
      * @param  mixed  $value
      * @return void
      */
@@ -1235,7 +1241,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     /**
      * Unset the value for a given offset.
      *
-     * @param  mixed  $offset
+     * @param  string  $offset
      * @return void
      */
     public function offsetUnset($offset): void

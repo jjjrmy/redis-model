@@ -1,6 +1,7 @@
 <?php
 namespace Alvin0\RedisModel;
 
+use Closure;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Support\Facades\DB;
 use Alvin0\RedisModel\Traits\QueriesRedisRelationships;
@@ -528,12 +529,16 @@ class Builder
      * @param  string|array  $relations
      * @return $this
      */
-    public function with($relations)
+    public function with($relations, $callback = null)
     {
-        $eagerLoad = $this->parseWithRelations(is_string($relations) ? func_get_args() : $relations);
-        
+        if ($callback instanceof Closure) {
+            $eagerLoad = $this->parseWithRelations([$relations => $callback]);
+        } else {
+            $eagerLoad = $this->parseWithRelations(is_string($relations) ? func_get_args() : $relations);
+        }
+
         $this->eagerLoad = array_merge($this->eagerLoad, $eagerLoad);
-        
+
         return $this;
     }
 
