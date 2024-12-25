@@ -260,4 +260,50 @@ trait HasRedisRelationships
     {
         return new \Alvin0\RedisModel\EloquentBuilder($query);
     }
+
+    /**
+     * Handle dynamic method calls into the model.
+     *
+     * @param  string  $method
+     * @param  array  $parameters
+     * @return mixed
+     */
+    public function __call($method, $parameters)
+    {
+        if (str_starts_with($method, 'through') && $method !== 'through') {
+            $relationship = lcfirst(substr($method, 7));
+            return $this->through($relationship);
+        }
+
+        if (str_starts_with($method, 'has')) {
+            $relationship = lcfirst(substr($method, 3));
+            return $this->$relationship();
+        }
+
+        return parent::__call($method, $parameters);
+    }
+
+    /**
+     * Begin a fluent has-one-through relationship chain.
+     *
+     * @param  string  $relationship
+     * @return \Alvin0\RedisModel\PendingHasThroughRelationship
+     */
+    public function through($relationship)
+    {
+        $relationship = lcfirst($relationship);
+        return new \Alvin0\RedisModel\PendingHasThroughRelationship($this, $this->$relationship());
+    }
+
+    /**
+     * Define the target relationship in a has-through chain.
+     *
+     * @param  string  $relationship
+     * @return mixed
+     */
+    public function has($relationship)
+    {
+        $relationship = lcfirst($relationship);
+        return $this->$relationship();
+    }
 }

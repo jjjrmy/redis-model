@@ -318,4 +318,28 @@ class HasOneThrough extends Relation
             }
         }
     }
+
+    /**
+     * Define the target relationship.
+     *
+     * @param  string  $relationship
+     * @return mixed
+     */
+    public function has($relationship)
+    {
+        $through = $this->throughParent::where($this->firstKey, $this->farParent->{$this->localKey})->first();
+
+        if (!$through) {
+            return null;
+        }
+
+        $relation = $through->$relationship();
+        $result = $relation->getResults();
+
+        if ($result) {
+            $result->setRelation(str_replace('has', '', debug_backtrace()[1]['function']), $through);
+        }
+
+        return $result;
+    }
 } 

@@ -40,6 +40,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         HasRedisRelationships::newBelongsTo insteadof HasRelationships;
         HasRedisRelationships::newBelongsToMany insteadof HasRelationships;
         HasRedisRelationships::newRelatedInstance insteadof HasRelationships;
+        HasRedisRelationships::through insteadof HasRelationships;
     }
     use GuardsAttributes,
     HidesAttributes,    
@@ -1044,6 +1045,16 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      */
     public function __call($method, $parameters)
     {
+        if (str_starts_with($method, 'through') && $method !== 'through') {
+            $relationship = lcfirst(substr($method, 7));
+            return $this->through($relationship);
+        }
+
+        if (str_starts_with($method, 'has')) {
+            $relationship = lcfirst(substr($method, 3));
+            return $this->$relationship();
+        }
+
         return $this->forwardCallTo($this->query(), $method, $parameters);
     }
 
