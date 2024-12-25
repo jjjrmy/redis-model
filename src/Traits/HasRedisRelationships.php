@@ -151,9 +151,9 @@ trait HasRedisRelationships
      */
     protected function newHasManyThrough(EloquentBuilder | RedisBuilder $query, EloquentModel | RedisModel $farParent, EloquentModel | RedisModel $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey)
     {
-        // if ($query instanceof RedisBuilder || $farParent instanceof RedisModel) {
-            // return new RedisHasManyThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
-        // }
+        if ($query instanceof RedisBuilder || $farParent instanceof RedisModel || $throughParent instanceof RedisModel) {
+            return new RedisHasManyThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
+        }
 
         return new EloquentHasManyThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
     }

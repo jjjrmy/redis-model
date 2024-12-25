@@ -25,6 +25,27 @@ beforeEach(function () {
         $table->string('car_id');
         $table->timestamps();
     });
+
+    // HasManyThrough migrations
+    Schema::create('projects', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
+        $table->timestamps();
+    });
+
+    Schema::create('environments', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
+        $table->string('project_id');
+        $table->timestamps();
+    });
+
+    Schema::create('deployments', function (Blueprint $table) {
+        $table->id();
+        $table->string('environment_id');
+        $table->string('commit_hash');
+        $table->timestamps();
+    });
 });
 
 class EloquentMechanic extends EloquentModel
@@ -183,6 +204,125 @@ class RedisOwner extends RedisModel
 {
     protected $fillable = ['car_id', 'name'];
     protected $subKeys = ['car_id'];
+}
+
+// HasManyThrough Models
+class EloquentProject extends EloquentModel
+{
+    use \Alvin0\RedisModel\Traits\HasRedisRelationships;
+    protected $table = 'projects';
+    protected $fillable = ['id', 'name'];
+
+    public function eloquentDeployments()
+    {
+        return $this->hasManyThrough(EloquentDeployment::class, EloquentEnvironment::class, 'project_id', 'environment_id');
+    }
+
+    public function redisDeployments()
+    {
+        return $this->hasManyThrough(RedisDeployment::class, RedisEnvironment::class, 'project_id', 'environment_id');
+    }
+
+    public function eloquentRedisDeployments()
+    {
+        return $this->hasManyThrough(EloquentDeployment::class, RedisEnvironment::class, 'project_id', 'environment_id');
+    }
+
+    public function redisEloquentDeployments()
+    {
+        return $this->hasManyThrough(RedisDeployment::class, EloquentEnvironment::class, 'project_id', 'environment_id');
+    }
+
+    public function eloquentEnvironments()
+    {
+        return $this->hasMany(EloquentEnvironment::class, 'project_id');
+    }
+
+    public function redisEnvironments()
+    {
+        return $this->hasMany(RedisEnvironment::class, 'project_id');
+    }
+}
+
+class RedisProject extends RedisModel
+{
+    protected $fillable = ['id', 'name'];
+
+    public function eloquentDeployments()
+    {
+        return $this->hasManyThrough(EloquentDeployment::class, EloquentEnvironment::class, 'project_id', 'environment_id');
+    }
+
+    public function redisDeployments()
+    {
+        return $this->hasManyThrough(RedisDeployment::class, RedisEnvironment::class, 'project_id', 'environment_id');
+    }
+
+    public function eloquentRedisDeployments()
+    {
+        return $this->hasManyThrough(EloquentDeployment::class, RedisEnvironment::class, 'project_id', 'environment_id');
+    }
+
+    public function redisEloquentDeployments()
+    {
+        return $this->hasManyThrough(RedisDeployment::class, EloquentEnvironment::class, 'project_id', 'environment_id');
+    }
+
+    public function eloquentEnvironments()
+    {
+        return $this->hasMany(EloquentEnvironment::class, 'project_id');
+    }
+
+    public function redisEnvironments()
+    {
+        return $this->hasMany(RedisEnvironment::class, 'project_id');
+    }
+}
+
+class EloquentEnvironment extends EloquentModel
+{
+    use \Alvin0\RedisModel\Traits\HasRedisRelationships;
+    protected $fillable = ['project_id', 'name'];
+    protected $table = 'environments';
+
+    public function eloquentDeployments()
+    {
+        return $this->hasMany(EloquentDeployment::class, 'environment_id');
+    }
+
+    public function redisDeployments()
+    {
+        return $this->hasMany(RedisDeployment::class, 'environment_id');
+    }
+}
+
+class RedisEnvironment extends RedisModel
+{
+    protected $fillable = ['project_id', 'name'];
+    protected $subKeys = ['project_id'];
+
+    public function eloquentDeployments()
+    {
+        return $this->hasMany(EloquentDeployment::class, 'environment_id');
+    }
+
+    public function redisDeployments()
+    {
+        return $this->hasMany(RedisDeployment::class, 'environment_id');
+    }
+}
+
+class EloquentDeployment extends EloquentModel
+{
+    use \Alvin0\RedisModel\Traits\HasRedisRelationships;
+    protected $fillable = ['environment_id', 'commit_hash'];
+    protected $table = 'deployments';
+}
+
+class RedisDeployment extends RedisModel
+{
+    protected $fillable = ['environment_id', 'commit_hash'];
+    protected $subKeys = ['environment_id'];
 }
 
 dataset('HasOneThrough', [
@@ -383,6 +523,97 @@ dataset('HasOneThroughFluent', [
     ],
 ]);
 
+dataset('HasManyThrough', [
+    'Eloquent -(through)-> Eloquent -(to)-> Eloquent' => [
+        fn () => EloquentProject::create(['name' => 'Project A']),
+        fn () => EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']),
+        fn () => EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        [
+            'project' => EloquentModel::class,
+            'environment' => EloquentModel::class,
+            'deployment' => EloquentModel::class,
+            'deployments' => 'eloquentDeployments',
+        ]
+    ],
+    'Eloquent -(through)-> Eloquent -(to)-> Redis' => [
+        fn () => EloquentProject::create(['name' => 'Project A']),
+        fn () => EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']),
+        fn () => RedisDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        [
+            'project' => EloquentModel::class,
+            'environment' => EloquentModel::class,
+            'deployment' => RedisModel::class,
+            'deployments' => 'redisEloquentDeployments',
+        ]
+    ],
+    'Eloquent -(through)-> Redis -(to)-> Eloquent' => [
+        fn () => EloquentProject::create(['name' => 'Project A']),
+        fn () => RedisEnvironment::create(['project_id' => 1, 'name' => 'Production', 'id' => 1]),
+        fn () => EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        [
+            'project' => EloquentModel::class,
+            'environment' => RedisModel::class,
+            'deployment' => EloquentModel::class,
+            'deployments' => 'eloquentRedisDeployments',
+        ]
+    ],
+    'Eloquent -(through)-> Redis -(to)-> Redis' => [
+        fn () => EloquentProject::create(['name' => 'Project A']),
+        fn () => RedisEnvironment::create(['project_id' => 1, 'name' => 'Production', 'id' => 1]),
+        fn () => RedisDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        [
+            'project' => EloquentModel::class,
+            'environment' => RedisModel::class,
+            'deployment' => RedisModel::class,
+            'deployments' => 'redisDeployments',
+        ]
+    ],
+    'Redis -(through)-> Eloquent -(to)-> Eloquent' => [
+        fn () => RedisProject::create(['id' => 1, 'name' => 'Project A']),
+        fn () => EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']),
+        fn () => EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        [
+            'project' => RedisModel::class,
+            'environment' => EloquentModel::class,
+            'deployment' => EloquentModel::class,
+            'deployments' => 'eloquentDeployments',
+        ]
+    ],
+    'Redis -(through)-> Eloquent -(to)-> Redis' => [
+        fn () => RedisProject::create(['id' => 1, 'name' => 'Project A']),
+        fn () => EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']),
+        fn () => RedisDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        [
+            'project' => RedisModel::class,
+            'environment' => EloquentModel::class,
+            'deployment' => RedisModel::class,
+            'deployments' => 'redisEloquentDeployments',
+        ]
+    ],
+    'Redis -(through)-> Redis -(to)-> Eloquent' => [
+        fn () => RedisProject::create(['id' => 1, 'name' => 'Project A']),
+        fn () => RedisEnvironment::create(['project_id' => 1, 'name' => 'Production', 'id' => 1]),
+        fn () => EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        [
+            'project' => RedisModel::class,
+            'environment' => RedisModel::class,
+            'deployment' => EloquentModel::class,
+            'deployments' => 'eloquentRedisDeployments',
+        ]
+    ],
+    'Redis -(through)-> Redis -(to)-> Redis' => [
+        fn () => RedisProject::create(['id' => 1, 'name' => 'Project A']),
+        fn () => RedisEnvironment::create(['project_id' => 1, 'name' => 'Production', 'id' => 1]),
+        fn () => RedisDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        [
+            'project' => RedisModel::class,
+            'environment' => RedisModel::class,
+            'deployment' => RedisModel::class,
+            'deployments' => 'redisDeployments',
+        ]
+    ],
+]);
+
 it('can get hasOneThrough relationships', function (
     EloquentModel|RedisModel $mechanic,
     EloquentModel|RedisModel $car,
@@ -467,3 +698,62 @@ it('can get hasOneThrough relationships using fluent dynamic syntax', function (
         ->toBeInstanceOf(get_class($owner))
         ->toBeInstanceOf($expected['owner']);
 })->with('HasOneThroughFluent');
+
+it('can get hasManyThrough relationships', function (
+    EloquentModel|RedisModel $project,
+    EloquentModel|RedisModel $environment,
+    EloquentModel|RedisModel $deployment,
+    array $expected
+) {
+    expect($project)
+        ->toBeInstanceOf($expected['project']);
+    expect($project->{$expected['deployments']})
+        ->toBeCollection()
+        ->and($project->{$expected['deployments']}->first())
+        ->toBeInstanceOf(get_class($deployment))
+        ->toBeInstanceOf($expected['deployment']);
+})->with('HasManyThrough');
+
+it('can eager load hasManyThrough relationships', function (
+    EloquentModel|RedisModel $project,
+    EloquentModel|RedisModel $environment,
+    EloquentModel|RedisModel $deployment,
+    array $expected
+) {
+    $modelClass = get_class($project);
+
+    $result = $modelClass::with($expected['deployments'])->first();
+    
+    expect($result)
+        ->toBeInstanceOf($expected['project'])
+        ->and($result->{$expected['deployments']})
+        ->toBeCollection()
+        ->and($result->{$expected['deployments']}->first())
+        ->toBeInstanceOf(get_class($deployment))
+        ->toBeInstanceOf($expected['deployment']);
+})->with('HasManyThrough');
+
+it('can lazy load hasManyThrough relationships', function (
+    EloquentModel|RedisModel $project,
+    EloquentModel|RedisModel $environment,
+    EloquentModel|RedisModel $deployment,
+    array $expected
+) {
+    $modelClass = get_class($project);
+    $result = $modelClass::first();
+    
+    expect($result->relationLoaded($expected['deployments']))
+        ->toBeFalse();
+    
+    $result->load($expected['deployments']);
+    
+    expect($result->relationLoaded($expected['deployments']))
+        ->toBeTrue()
+        ->and($result)
+        ->toBeInstanceOf($expected['project'])
+        ->and($result->{$expected['deployments']})
+        ->toBeCollection()
+        ->and($result->{$expected['deployments']}->first())
+        ->toBeInstanceOf(get_class($deployment))
+        ->toBeInstanceOf($expected['deployment']);
+})->with('HasManyThrough');
