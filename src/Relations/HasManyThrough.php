@@ -273,9 +273,7 @@ class HasManyThrough extends Relation
         if ($this->related instanceof RedisModel) {
             $results = collect();
             foreach ($throughKeys as $key) {
-                if ($result = $this->related::where($this->secondKey, (string)$key)->first()) {
-                    $results->push($result);
-                }
+                $results = $results->merge($this->related::where($this->secondKey, (string)$key)->get());
             }
             return new RedisCollection($results);
         }
@@ -315,13 +313,9 @@ class HasManyThrough extends Relation
             foreach ($throughModels as $through) {
                 $throughKey = $through->{$this->secondLocalKey};
                 if ($this->related instanceof RedisModel) {
-                    if ($result = $this->related::where($this->secondKey, (string)$throughKey)->first()) {
-                        $results->push($result);
-                    }
+                    $results = $results->merge($this->related::where($this->secondKey, (string)$throughKey)->get());
                 } else {
-                    if ($result = $this->query->where($this->secondKey, $throughKey)->first()) {
-                        $results->push($result);
-                    }
+                    $results = $results->merge($this->query->where($this->secondKey, $throughKey)->get());
                 }
             }
             return $results;
@@ -333,9 +327,7 @@ class HasManyThrough extends Relation
             if ($this->related instanceof RedisModel) {
                 $results = collect();
                 foreach ($throughKeys as $key) {
-                    if ($result = $this->related::where($this->secondKey, (string)$key)->first()) {
-                        $results->push($result);
-                    }
+                    $results = $results->merge($this->related::where($this->secondKey, (string)$key)->get());
                 }
                 return $results;
             } else {

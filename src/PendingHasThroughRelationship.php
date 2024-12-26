@@ -3,7 +3,9 @@
 namespace Alvin0\RedisModel;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Alvin0\RedisModel\Model as RedisModel;
+use Alvin0\RedisModel\Collection as RedisCollection;
 use Alvin0\RedisModel\Relations\HasOneThrough;
 
 class PendingHasThroughRelationship
@@ -43,17 +45,29 @@ class PendingHasThroughRelationship
      */
     public function has($relationship)
     {
-        if ($this->throughRelation instanceof HasOneThrough) {
+        if ($this->throughRelation instanceof HasOneThrough || $this->throughRelation instanceof \Illuminate\Database\Eloquent\Relations\HasOneThrough) {
             return $this->throughRelation->has($relationship);
         }
 
-        $through = $this->throughRelation->first();
-        if (!$through) {
-            return null;
+        $throughModels = $this->throughRelation->get();
+        if ($throughModels->isEmpty()) {
+            return $this->model instanceof RedisModel ? new RedisCollection : $this->model->newCollection();
         }
 
-        $relation = $through->$relationship();
-        return $relation->getResults();
+        $results = collect();
+        foreach ($throughModels as $through) {
+            $relation = $through->$relationship();
+            if ($relation instanceof \Illuminate\Database\Eloquent\Relations\HasOne || $relation instanceof \Alvin0\RedisModel\Relations\HasOne) {
+                $result = $relation->getResults();
+                if ($result) {
+                    return $result;
+                }
+            } else {
+                $results = $results->merge($relation->getResults());
+            }
+        }
+
+        return $this->model instanceof RedisModel ? new RedisCollection($results) : $this->model->newCollection($results->all());
     }
 
     /**

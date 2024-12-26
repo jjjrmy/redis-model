@@ -337,7 +337,8 @@ class HasOneThrough extends Relation
         $result = $relation->getResults();
 
         if ($result) {
-            $result->setRelation(str_replace('has', '', debug_backtrace()[1]['function']), $through);
+            $relationName = lcfirst(substr(debug_backtrace()[1]['function'], 3));
+            $result->setRelation($relationName, $through);
         }
 
         return $result;

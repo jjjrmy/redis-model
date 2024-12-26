@@ -369,9 +369,17 @@ class RedisDeployment extends RedisModel
 
 dataset('HasOneThrough', [
     'Eloquent -(through)-> Eloquent -(to)-> Eloquent' => [
-        fn () => EloquentMechanic::create(['name' => 'John']),
-        fn () => EloquentCar::create(['mechanic_id' => 1, 'model' => 'Toyota']),
-        fn () => EloquentOwner::create(['car_id' => 1, 'name' => 'Alice']),
+        function () {
+            EloquentMechanic::create(['name' => 'John']);
+            EloquentMechanic::create(['id' => 2, 'name' => 'Jane']); // Another mechanic
+            EloquentCar::create(['mechanic_id' => 1, 'model' => 'Toyota']);
+            EloquentCar::create(['mechanic_id' => 2, 'model' => 'Honda']); // Car for other mechanic
+            EloquentOwner::create(['car_id' => 1, 'name' => 'Alice']);
+            EloquentOwner::create(['car_id' => 2, 'name' => 'Bob']); // Owner for other car
+            return EloquentMechanic::find(1);
+        },
+        fn () => EloquentCar::where('mechanic_id', 1)->first(),
+        fn () => EloquentOwner::where('car_id', 1)->first(),
         [
             'mechanic' => EloquentModel::class,
             'car' => EloquentModel::class,
@@ -567,25 +575,55 @@ dataset('HasOneThroughFluent', [
 
 dataset('HasManyThrough', [
     'Eloquent -(through)-> Eloquent -(to)-> Eloquent' => [
-        fn () => EloquentProject::create(['name' => 'Project A']),
-        fn () => EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']),
-        fn () => EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        function () {
+            EloquentProject::create(['name' => 'Project A']);
+            EloquentProject::create(['id' => 2, 'name' => 'Project B']); // Another project
+            
+            EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']);
+            EloquentEnvironment::create(['project_id' => 1, 'name' => 'Staging']); // Another env for same project
+            EloquentEnvironment::create(['project_id' => 2, 'name' => 'Production']); // Env for other project
+            
+            EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']);
+            EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'def456']); // Another deployment for same env
+            EloquentDeployment::create(['environment_id' => 2, 'commit_hash' => 'ghi789']); // Deployment for other env
+            EloquentDeployment::create(['environment_id' => 3, 'commit_hash' => 'jkl012']); // Deployment for other project's env
+            
+            return EloquentProject::find(1);
+        },
+        fn () => EloquentEnvironment::where('project_id', 1)->first(),
+        fn () => EloquentDeployment::where('environment_id', 1)->first(),
         [
             'project' => EloquentModel::class,
             'environment' => EloquentModel::class,
             'deployment' => EloquentModel::class,
             'deployments' => 'eloquentDeployments',
+            'expected_count' => 3, // 2 from env 1 + 1 from env 2
         ]
     ],
     'Eloquent -(through)-> Eloquent -(to)-> Redis' => [
-        fn () => EloquentProject::create(['name' => 'Project A']),
-        fn () => EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']),
-        fn () => RedisDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        function () {
+            EloquentProject::create(['name' => 'Project A']);
+            EloquentProject::create(['id' => 2, 'name' => 'Project B']);
+            
+            EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']);
+            EloquentEnvironment::create(['project_id' => 1, 'name' => 'Staging']);
+            EloquentEnvironment::create(['project_id' => 2, 'name' => 'Production']);
+            
+            RedisDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']);
+            RedisDeployment::create(['environment_id' => 1, 'commit_hash' => 'def456']);
+            RedisDeployment::create(['environment_id' => 2, 'commit_hash' => 'ghi789']);
+            RedisDeployment::create(['environment_id' => 3, 'commit_hash' => 'jkl012']);
+            
+            return EloquentProject::find(1);
+        },
+        fn () => EloquentEnvironment::where('project_id', 1)->first(),
+        fn () => RedisDeployment::where('environment_id', 1)->first(),
         [
             'project' => EloquentModel::class,
             'environment' => EloquentModel::class,
             'deployment' => RedisModel::class,
             'deployments' => 'redisEloquentDeployments',
+            'expected_count' => 3,
         ]
     ],
     'Eloquent -(through)-> Redis -(to)-> Eloquent' => [
@@ -658,16 +696,31 @@ dataset('HasManyThrough', [
 
 dataset('HasManyThroughFluent', [
     'Eloquent -(through)-> Eloquent -(to)-> Eloquent' => [
-        fn () => EloquentProject::create(['name' => 'Project A']),
-        fn () => EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']),
-        fn () => EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']),
+        function () {
+            EloquentProject::create(['name' => 'Project A']);
+            EloquentProject::create(['id' => 2, 'name' => 'Project B']);
+            
+            EloquentEnvironment::create(['project_id' => 1, 'name' => 'Production']);
+            EloquentEnvironment::create(['project_id' => 1, 'name' => 'Staging']);
+            EloquentEnvironment::create(['project_id' => 2, 'name' => 'Production']);
+            
+            EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'abc123']);
+            EloquentDeployment::create(['environment_id' => 1, 'commit_hash' => 'def456']);
+            EloquentDeployment::create(['environment_id' => 2, 'commit_hash' => 'ghi789']);
+            EloquentDeployment::create(['environment_id' => 3, 'commit_hash' => 'jkl012']);
+            
+            return EloquentProject::find(1);
+        },
+        fn () => EloquentEnvironment::where('project_id', 1)->first(),
+        fn () => EloquentDeployment::where('environment_id', 1)->first(),
         [
             'project' => EloquentModel::class,
             'environment' => EloquentModel::class,
             'deployment' => EloquentModel::class,
             'deployments' => 'fluentEloquentDeployments',
             'throughRelationship' => 'eloquentEnvironments',
-            'hasRelationship' => 'eloquentDeployments'
+            'hasRelationship' => 'eloquentDeployments',
+            'expected_count' => 3,
         ]
     ],
     'Eloquent -(through)-> Eloquent -(to)-> Redis' => [
@@ -858,6 +911,8 @@ it('can get hasManyThrough relationships', function (
         ->toBeInstanceOf($expected['project']);
     expect($project->{$expected['deployments']})
         ->toBeCollection()
+        ->and($project->{$expected['deployments']}->count())
+        ->toBe($expected['expected_count'] ?? 1)
         ->and($project->{$expected['deployments']}->first())
         ->toBeInstanceOf(get_class($deployment))
         ->toBeInstanceOf($expected['deployment']);
@@ -877,6 +932,8 @@ it('can eager load hasManyThrough relationships', function (
         ->toBeInstanceOf($expected['project'])
         ->and($result->{$expected['deployments']})
         ->toBeCollection()
+        ->and($result->{$expected['deployments']}->count())
+        ->toBe($expected['expected_count'] ?? 1)
         ->and($result->{$expected['deployments']}->first())
         ->toBeInstanceOf(get_class($deployment))
         ->toBeInstanceOf($expected['deployment']);
@@ -902,6 +959,8 @@ it('can lazy load hasManyThrough relationships', function (
         ->toBeInstanceOf($expected['project'])
         ->and($result->{$expected['deployments']})
         ->toBeCollection()
+        ->and($result->{$expected['deployments']}->count())
+        ->toBe($expected['expected_count'] ?? 1)
         ->and($result->{$expected['deployments']}->first())
         ->toBeInstanceOf(get_class($deployment))
         ->toBeInstanceOf($expected['deployment']);
@@ -919,6 +978,8 @@ it('can get hasManyThrough relationships using fluent string syntax', function (
     $result = $project->through($expected['throughRelationship'])->has($expected['hasRelationship']);
     expect($result)
         ->toBeCollection()
+        ->and($result->count())
+        ->toBe($expected['expected_count'] ?? 1)
         ->and($result->first())
         ->toBeInstanceOf(get_class($deployment))
         ->toBeInstanceOf($expected['deployment']);
@@ -938,6 +999,8 @@ it('can get hasManyThrough relationships using fluent dynamic syntax', function 
     $result = $project->$throughMethod()->$hasMethod();
     expect($result)
         ->toBeCollection()
+        ->and($result->count())
+        ->toBe($expected['expected_count'] ?? 1)
         ->and($result->first())
         ->toBeInstanceOf(get_class($deployment))
         ->toBeInstanceOf($expected['deployment']);
